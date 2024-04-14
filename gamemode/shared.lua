@@ -5,6 +5,33 @@ GM.Website = "http://nutscript.net/"
 
 nut.version = "1.2.3"
 
+local meta = {}
+function meta.__index(self, key)
+	return FindMetaTable(key)
+end
+
+local metas = {}
+function meta.__newindex(self, key, value)
+	metas[ key ] = value
+end
+
+debug.getregistry = function()
+	local tbl = {}
+	setmetatable(tbl, meta)
+
+	return tbl
+end
+
+local oldFindMetaTable = FindMetaTable
+FindMetaTable = function( name )
+	local f = oldFindMetaTable( name )
+	if ( f ) then return f end
+
+	return metas[ name ]
+end
+
+_R 	= debug.getregistry()
+
 -- Fix for client:SteamID64() returning nil when in single-player.
 do
 	local playerMeta = FindMetaTable("Player")
