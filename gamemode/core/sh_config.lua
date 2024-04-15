@@ -3,6 +3,7 @@ nut.config.stored = nut.config.stored or {}
 
 function nut.config.add(key, value, desc, callback, data, noNetworking, schemaOnly)
 	assert(isstring(key), "expected config key to be string, got " .. type(key))
+	assert(istable(data), "expected config data to be a table, got " .. type(data))
 	local oldConfig = nut.config.stored[key]
 	local savedValue
 	if (oldConfig) then
