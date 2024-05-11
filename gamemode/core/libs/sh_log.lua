@@ -21,6 +21,11 @@ nut.log.color = {
 }
 local consoleColor = Color(50, 200, 50)
 
+CAMI.RegisterPrivilege({
+	Name = "NS.Logs",
+	MinAccess = "admin"
+})
+
 if (SERVER) then
 	if (not nut.db) then
 		include("sv_database.lua")
@@ -101,7 +106,9 @@ if (SERVER) then
 	-- @realm server
 	function nut.log.addRaw(logString, shouldNotify, flag)		
 		if (shouldNotify) then
-			nut.log.send(nut.util.getAdmins(), logString, flag)
+			CAMI.GetPlayersWithAccess("NS.Logs", function(allowedPlys)
+				nut.log.send(allowedPlys, logString, flag)
+			end)
 		end
 
 		Msg("[LOG] ", logString.."\n")

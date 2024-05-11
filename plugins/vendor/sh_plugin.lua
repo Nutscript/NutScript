@@ -2,6 +2,11 @@ PLUGIN.name = "Vendors"
 PLUGIN.author = "Chessnut"
 PLUGIN.desc = "Adds NPC vendors that can sell things."
 
+CAMI.RegisterPrivilege({
+	Name = "NS.ManageVendors",
+	MinAccess = "admin"
+})
+
 if (SERVER) then
 	AddCSLuaFile("cl_editor.lua")
 end

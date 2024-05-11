@@ -14,6 +14,10 @@ nut.config.add(
 	{category = PLUGIN.name}
 )
 
+CAMI.RegisterPrivilege({
+	Name = "NS.PAC",
+})
+
 -- Set up the flag corresponding to pacFlag config.
 local flag = nut.config.get("pacFlag")
 if (flag ~= "") then
@@ -44,6 +48,11 @@ function PLUGIN:isAllowedToUsePAC(client)
 		return true
 	end
 
+	if (CAMI.PlayerHasAccess(client, "NS.PAC")) then
+		return true
+	end
+
+	-- legacy method, kept for compat
 	local allowed = self:getAllowedUserGroups()
 	if (allowed.admin and client:IsAdmin()) then return true end
 	if (allowed.superadmin and client:IsSuperAdmin()) then return true end

@@ -610,12 +610,14 @@ function GM:CharacterPreSave(character)
 end
 
 function GM:OnServerLog(client, logType, ...)
-	for _, v in pairs(nut.util.getAdmins()) do
-
-		if (hook.Run("CanPlayerSeeLog", v, logType) ~= false) then
-			nut.log.send(v, nut.log.getString(client, logType, ...))
+	local vararg = {...}
+	CAMI.GetPlayersWithAccess("NS.Logs", function(allowedPlys)
+		for _, v in ipairs(allowedPlys) do
+			if (hook.Run("CanPlayerSeeLog", v, logType) ~= false) then
+				nut.log.send(v, nut.log.getString(client, logType, unpack(vararg)))
+			end
 		end
-	end
+	end)
 end
 
 -- this table is based on mdl's prop keyvalue data. FIX IT WILLOX!

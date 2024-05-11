@@ -103,31 +103,11 @@ hook.Add("BuildHelpMenu", "nutBasicHelp", function(tabs)
 		local body = ""
 
 		for k, v in SortedPairs(nut.command.list) do
-			local allowed = false
-
-			if (v.adminOnly and not LocalPlayer():IsAdmin()or v.superAdminOnly and not LocalPlayer():IsSuperAdmin()) then
+			if (not v.onCheckAccess(LocalPlayer())) then
 				continue
 			end
 
-			if (v.group) then
-				if (istable(v.group)) then
-					for _, v1 in pairs(v.group) do
-						if (LocalPlayer():IsUserGroup(v1)) then
-							allowed = true
-
-							break
-						end
-					end
-				elseif (LocalPlayer():IsUserGroup(v.group)) then
-					return true
-				end
-			else
-				allowed = true
-			end
-
-			if (allowed) then
-				body = body.."<h2>/"..k.."</h2><strong>Syntax:</strong> <em>"..v.syntax.."</em><br /><br />"
-			end
+			body = body.."<h2>/"..k.."</h2><strong>Syntax:</strong> <em>"..v.syntax.."</em><br /><br />"
 		end
 
 		return body
