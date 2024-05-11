@@ -77,6 +77,8 @@ function PANEL:Init()
         http.Fetch("https://api.github.com/repos/NutScript/NutScript/contributors?per_page=100",
             function(body, length, headers, code)
                 if (#PLUGIN.contributorData > 0) then
+                    self:RebuildContributors()
+
                     return
                 end
 
@@ -86,10 +88,6 @@ function PANEL:Init()
                     if (not PLUGIN.excludeList[v.login]) then
                         table.insert(PLUGIN.contributorData, {url = v.html_url, avatar_url = v.avatar_url, name = v.login})
                     end
-                end
-
-                if (self.RebuildContributors) then
-                    self:RebuildContributors()
                 end
             end, function(message) end, {})
     else
