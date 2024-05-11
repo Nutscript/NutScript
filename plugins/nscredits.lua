@@ -1,172 +1,40 @@
+
+local PLUGIN = PLUGIN
+
 PLUGIN.name = "Credits Tab"
 PLUGIN.desc = "A tab where players can see who made the framework/schema"
 PLUGIN.author = "NS Team"
 
 if SERVER then return end
 
-local ScrW, ScrH = ScrW(), ScrH()
-local logoMat = Material("nutscript/logo.png")
-local logoGlowMat = Material("nutscript/logo_glow.png")
-local textureID = surface.GetTextureID("models/effects/portalfunnel_sheet")
-local sin = math.sin
+PLUGIN.excludeList = {
+    ["github_username_here"] = true
+}
+PLUGIN.contributorData = PLUGIN.contributorData or {}
+
+local logoMat = nut.util.getMaterial("nutscript/logo.png")
+
 surface.CreateFont("nutSmallCredits", {
-    font = "Roboto",
+    font = "Roboto Th",
     size = 20,
     weight = 400
 })
 
 surface.CreateFont("nutBigCredits", {
-    font = "Roboto",
+    font = "Roboto Th",
     size = 32,
     weight = 600
 })
 
-local colorCreator, colorLDev, colorDev = Color(255, 0, 0), Color(138,43,226), Color(34,139,34)
-
-local authorCredits = {
-    {desc = "Creator", steamid = "76561198030127257", color = colorCreator}, -- Chessnut
-    {desc = "Co-Creator", steamid = "76561197999893894", color = colorCreator}, -- Black Tea
-    {desc = "Lead Developer", steamid = "76561198060659964", color = colorLDev}, -- Zoephix
-    {desc = "Lead Developer", steamid = "76561198070441753", color = colorLDev}, -- TovarischPootis
-    {desc = "Developer", steamid = "76561198036551982", color = colorDev}, -- Seamus
-    {desc = "Developer", steamid = "76561198251000796", color = colorDev}, -- Dobytchick
-    {desc = "Developer", steamid = "76561198031437460", color = colorDev}, -- Milk
-}
-
-do
-    for _, v in ipairs(authorCredits) do
-        steamworks.RequestPlayerInfo(v.steamid, function(steamName)
-            v.name = steamName or "Loading..."
-        end)
-    end
-end
-
-local contributors = {desc = "View All Contributors", url = "https://github.com/NutScript/NutScript/graphs/contributors"}
-local discord = {desc = "Join the NutScript Community Discord", url = "https://discord.gg/ySZY8TY"}
-
 local PANEL = {}
 
-function PANEL:Init()
-
-    self.avatarImage = self:Add("AvatarImage")
-    self.avatarImage:Dock(LEFT)
-    self.avatarImage:SetSize(64,64)
-
-    self.name = self:Add("DLabel")
-    self.name:SetFont("nutBigCredits")
-    self.name:SetText("Loading...")
-
-    self.desc = self:Add("DLabel")
-    self.desc:SetFont("nutSmallCredits")
-end
-
-function PANEL:setAvatarImage(id)
-    if not self.avatarImage then return end
-    self.avatarImage:SetSteamID(id, 64)
-    self.avatarImage.OnCursorEntered = function()
-        surface.PlaySound("garrysmod/ui_return.wav")
-    end
-
-    self.avatarImage.OnMousePressed = function()
-        surface.PlaySound("buttons/button14.wav")
-        gui.OpenURL("http://steamcommunity.com/profiles/"..id)
-    end
-end
-
-function PANEL:setName(name, color)
-    if not IsValid(self.name) then return end
-    self.name:SetText(name)
-    if color then
-        self.name:SetTextColor(color)
-    end
-    self.name:SizeToContents()
-    self.name:Dock(TOP)
-    self.name:DockMargin(ScrW*0.01, 0,0,0)
-end
-
-function PANEL:setDesc(desc)
-    if not self.desc then return end
-    self.desc:SetText(desc)
-    self.desc:SizeToContents()
-    self.desc:Dock(TOP)
-    self.desc:DockMargin(ScrW*0.01, 0,0,0)
-end
-
 function PANEL:Paint(w, h)
-    surface.SetTexture(textureID)
-    surface.DrawTexturedRect(0, 0, w, h)
-end
-vgui.Register("CreditsNamePanel", PANEL, "DPanel")
-
-PANEL = {}
-
-function PANEL:Init()
-    self.contButton = self:Add("DButton")
-    self.contButton:SetFont("nutBigCredits")
-    self.contButton:SetText(contributors.desc)
-    self.contButton.DoClick = function()
-        surface.PlaySound("buttons/button14.wav")
-		gui.OpenURL(contributors.url)
-    end
-    self.contButton.Paint = function() end
-    self.contButton:Dock(TOP)
-
-    self.discordButton = self:Add("DButton")
-    self.discordButton:SetFont("nutBigCredits")
-    self.discordButton:SetText(discord.desc)
-    self.discordButton.DoClick = function()
-        surface.PlaySound("buttons/button14.wav")
-		gui.OpenURL(discord.url)
-    end
-    self.discordButton.Paint = function() end
-    self.discordButton:Dock(TOP)
-    self:SizeToChildren(true, true)
-end
-
-function PANEL:Paint()
-end
-
-vgui.Register("CreditsContribPanel", PANEL, "DPanel")
-
-PANEL = {}
-
-function PANEL:Init()
-
-end
-
-function PANEL:setPerson(data, left)
-    local id = left and "creditleft" or "creditright"
-    self[id] = self:Add("CreditsNamePanel")
-    self[id]:setAvatarImage(data.steamid)
-    self[id]:setName(data.name, data.color)
-    self[id]:setDesc(data.desc)
-    self[id]:Dock(left and LEFT or RIGHT)
-    self[id]:InvalidateLayout(true)
-    self[id]:SizeToChildren(false, true)
-    self:InvalidateLayout(true)
-    self[id]:SetWide((self:GetWide()/2)+32)
-end
-
-function PANEL:Paint()
-end
-
-vgui.Register("CreditsCreditsList", PANEL, "DPanel")
-
-PANEL = {}
-
-function PANEL:Init()
-end
-
-function PANEL:Paint(w,h)
-    surface.SetMaterial(logoGlowMat)
-    surface.SetDrawColor(255, 255, 255, 64*sin(CurTime())+191)
-    surface.DrawTexturedRect((w/2)-128,(h/2)-128,256,256)
     surface.SetMaterial(logoMat)
     surface.SetDrawColor(255, 255, 255, 255)
-    surface.DrawTexturedRect((w/2)-128,(h/2)-128,256,256)
+    surface.DrawTexturedRect(w * 0.5 - 128, h * 0.5 - 128, 256, 256)
 end
 
-vgui.Register("CreditsLogo", PANEL, "DPanel")
+vgui.Register("CreditsLogo", PANEL, "Panel")
 
 PANEL = {}
 
@@ -176,54 +44,163 @@ function PANEL:Init()
     end
     nut.gui.creditsPanel = self
 
-    self:SetSize(ScrW*0.3, ScrH*0.7)
-
     self.logo = self:Add("CreditsLogo")
-    self.logo:SetSize(ScrW*0.4, ScrW*0.1)
+    self.logo:SetTall(256)
     self.logo:Dock(TOP)
-    self.logo:DockMargin(0,0,0,ScrH*0.05)
 
-    self.nsteam = self:Add("DLabel")
-    self.nsteam:SetFont("nutBigCredits")
-    self.nsteam:SetText("NutScript Development Team")
-    self.nsteam:SizeToContents()
-    self.nsteam:Dock(TOP)
-    local dockLeft = ScrW*0.15 - (self.nsteam:GetContentSize())/2
-    self.nsteam:DockMargin(dockLeft,0,0,ScrH*0.025)
+    self.nsLabel = self:Add("DLabel")
+    self.nsLabel:SetFont("nutBigCredits")
+    self.nsLabel:SetText("NutScript")
+    self.nsLabel:SetContentAlignment(5)
+    self.nsLabel:SizeToContents()
+    self.nsLabel:Dock(TOP)
 
-    self.creditPanels = {}
-    local curNum = 0
+    self.repoLabel = self:Add("DLabel")
+    self.repoLabel:SetFont("nutSmallCredits")
+    self.repoLabel:SetText("https://github.com/NutScript")
+    self.repoLabel:SetMouseInputEnabled(true)
+    self.repoLabel:SetCursor("hand")
+    self.repoLabel:SetContentAlignment(5)
+    self.repoLabel:SizeToContents()
+    self.repoLabel:Dock(TOP)
+    self.repoLabel:DockMargin(0, 0, 0, 48)
+    self.repoLabel.DoClick = function()
+        gui.OpenURL("https://github.com/NutScript")
+    end
 
-    for k, v in ipairs(authorCredits) do
-        if k%2 ~= 0 then -- if k is odd
-            self.creditPanels[k] = self:Add("CreditsCreditsList")
-            curNum = k
-            self.creditPanels[curNum]:SetSize(self:GetWide(), ScrH*0.05)
-            self.creditPanels[curNum]:setPerson(v, true)
-            self.creditPanels[curNum]:Dock(TOP)
-            self.creditPanels[curNum]:DockMargin(0,0,0,ScrH*0.01)
-        else
-            self.creditPanels[curNum]:setPerson(v, false)
-            self.creditPanels[curNum]:Dock(TOP)
-            self.creditPanels[curNum]:DockMargin(0,0,0,ScrH*0.01)
+    self.contribList = self:Add("DIconLayout")
+    self.contribList:Dock(TOP)
+    self.contribList:SetSpaceX(8)
+    self.contribList:SetSpaceY(8)
+
+    if (#PLUGIN.contributorData == 0) then
+        http.Fetch("https://api.github.com/repos/NutScript/NutScript/contributors?per_page=100",
+            function(body, length, headers, code)
+                if (#PLUGIN.contributorData > 0) then
+                    return
+                end
+
+                local contributors = util.JSONToTable(body)
+
+                for k, v in pairs(contributors) do
+                    if (not PLUGIN.excludeList[v.login]) then
+                        table.insert(PLUGIN.contributorData, {url = v.html_url, avatar_url = v.avatar_url, name = v.login})
+                    end
+                end
+
+                if (self.RebuildContributors) then
+                    self:RebuildContributors()
+                end
+            end, function(message) end, {})
+    else
+        self:RebuildContributors()
+    end
+end
+
+function PANEL:RebuildContributors()
+    self.contribList:Clear()
+    self:LoadContributor(1, true)
+end
+
+function PANEL:LoadContributor(contributor, bLoadNextChunk)
+    if (PLUGIN.contributorData[contributor]) then
+        if (BRANCH == "x86-64") then
+            local container = self.contribList:Add("Panel")
+            container:SetSize(96, 116)
+            container.highlightAlpha = 0
+            container.Paint = function(this, width, height)
+                if (this:IsHovered()) then
+                    this.highlightAlpha = Lerp(FrameTime() * 16, this.highlightAlpha, 128)
+                else
+                    this.highlightAlpha = Lerp(FrameTime() * 16, this.highlightAlpha, 0)
+                end
+
+                surface.SetDrawColor(ColorAlpha(nut.config.get("color"), this.highlightAlpha * 0.5))
+                surface.SetMaterial(nut.util.getMaterial("vgui/gradient-d"))
+                surface.DrawTexturedRect(0, 0, width, height)
+
+                surface.SetDrawColor(ColorAlpha(nut.config.get("color"), this.highlightAlpha))
+                surface.DrawRect(0, height - 1, width, 1)
+            end
+            container.OnMousePressed = function(this, keyCode)
+                if (keyCode == 107) then
+                    gui.OpenURL(PLUGIN.contributorData[contributor].url)
+                end
+            end
+            container.OnMouseWheeled = function(this, delta)
+                self:OnMouseWheeled(delta)
+            end
+            container:SetCursor("hand")
+            container:SetTooltip(PLUGIN.contributorData[contributor].url)
+
+            local contributorPanel = container:Add("DHTML")
+            contributorPanel:SetHTML("<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"" .. PLUGIN.contributorData[contributor].avatar_url .. "\">")
+            contributorPanel:SetMouseInputEnabled(false)
+            contributorPanel:Dock(FILL)
+            contributorPanel:DockMargin(8, 8, 8, 8)
+   
+            if (bLoadNextChunk) then
+                contributorPanel.OnFinishLoadingDocument = function(this, url)
+                    -- load 3 at a time, nice balance between not eating up your cpu cycles and being quick to load all the avatars
+                    for i = 1, 3 do
+                        if (contributor + i > #PLUGIN.contributorData) then
+                            return
+                        end
+
+                        self:LoadContributor(contributor + i, i == 3)
+                    end
+                end
+            end
+
+            local button = container:Add("DLabel")
+            button:Dock(BOTTOM)
+            button:SetMouseInputEnabled(false)
+            button:SetFont("nutSmallCredits")
+            button:SetText(PLUGIN.contributorData[contributor].name)
+            button:SetContentAlignment(5)
+            button:SetTall(20)
+        else -- we're on 'main' branch, labels are made fast, just create them all at once
+           for _, v in ipairs(PLUGIN.contributorData) do
+                local button = self.contribList:Add("DLabel")
+                button:SetMouseInputEnabled(true)
+                button:SetText(v.name)
+                button:SetFont("nutSmallCredits")
+                button:SetCursor("hand")
+                button:SetTooltip(v.url)
+                button:SizeToContents()
+                button.highlightAlpha = 0
+                button.DoClick = function()
+                    gui.OpenURL(v.url)
+                end
+                button.OnMouseWheeled = function(this, delta)
+                    self:OnMouseWheeled(delta)
+                end
+                button.Paint = function(this, width, height)
+                    if (this:IsHovered()) then
+                        this.highlightAlpha = Lerp(FrameTime() * 16, this.highlightAlpha, 128)
+                    else
+                        this.highlightAlpha = Lerp(FrameTime() * 16, this.highlightAlpha, 0)
+                    end
+
+                    surface.SetDrawColor(ColorAlpha(nut.config.get("color"), this.highlightAlpha * 0.5))
+                    surface.SetMaterial(nut.util.getMaterial("vgui/gradient-d"))
+                    surface.DrawTexturedRect(0, 0, width, height)
+
+                    surface.SetDrawColor(ColorAlpha(nut.config.get("color"), this.highlightAlpha))
+                    surface.DrawRect(0, height - 1, width, 1)
+                end
+           end
         end
     end
-    self.contribPanel = self:Add("CreditsContribPanel")
-    self.contribPanel:SizeToChildren(true, true)
-    self.contribPanel:Dock(TOP)
 end
 
-function PANEL:Paint()
-end
-
-vgui.Register("nutCreditsList", PANEL, "DPanel")
+vgui.Register("nutCreditsList", PANEL, "DScrollPanel")
 
 hook.Add("BuildHelpMenu", "nutCreditsList", function(tabs)
 	tabs["Credits"] = function()
         if helpPanel then
             local credits = helpPanel:Add("nutCreditsList")
-            credits:Dock(TOP)
-            credits:DockMargin(ScrW*0.1, 0, ScrW*0.1, 0)
+            credits:Dock(FILL)
         end
         return ""
     end
