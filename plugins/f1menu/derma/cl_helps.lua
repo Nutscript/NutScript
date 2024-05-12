@@ -47,37 +47,25 @@
 			tree:DockMargin(0, 0, 15, 0)
 			tree.OnNodeSelected = function(this, node)
 				if (node.onGetHTML) then
+					for k, panel in ipairs(helpPanel:GetChildren()) do
+						if (panel != html) then
+							panel:Remove()
+						end
+					end
+
 					local source = node:onGetHTML()
-					if IsValid(helpPanel) then
-						helpPanel:Remove()
-					end
-					if nut.gui.creditsPanel then
-						nut.gui.creditsPanel:Remove()
-					end
-
-					helpPanel = panel:Add("DListView")
-					helpPanel:Dock(FILL)
-					helpPanel.Paint = function()
-					end
-					helpPanel:InvalidateLayout(true)
-
-					html = helpPanel:Add("DHTML")
-					html:Dock(FILL)
-					html:SetHTML(header..HELP_DEFAULT)
 
 					if (source and source:sub(1, 4) == "http") then
 						html:OpenURL(source)
 					else
-						html:SetHTML(header..node:onGetHTML().."</body></html>")
+						html:SetHTML(header..source.."</body></html>")
 					end
 				end
 			end
 
 			if not IsValid(helpPanel) then
-				helpPanel = panel:Add("DListView")
+				helpPanel = panel:Add("Panel")
 				helpPanel:Dock(FILL)
-				helpPanel.Paint = function()
-				end
 
 				html = helpPanel:Add("DHTML")
 				html:Dock(FILL)
