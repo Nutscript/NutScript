@@ -109,7 +109,6 @@ function PANEL:newRow()
             totalWidth = totalWidth + v:GetWide() + v:GetDockMargin()
 
             if (totalWidth > self:GetWide()) then
-                print(totalWidth, self:GetWide())
                 v:SetParent(self:newRow())
             end
         end
@@ -208,9 +207,12 @@ function PANEL:Init()
     self.contribList:SetSpaceX(CONTRIB_MARGIN)
     self.contribList:SetSpaceY(CONTRIB_MARGIN)
 
-    if (#PLUGIN.contributorData == 0) then
+    -- if it's less than 3 we've either never opened the credits before or we did but could not make the connection so we only have the fallback data
+    if (#PLUGIN.contributorData < 3) then
         http.Fetch("https://api.github.com/repos/NutScript/NutScript/contributors?per_page=100",
             function(body, length, headers, code)
+                PLUGIN.contributorData = {}
+
                 local contributors = util.JSONToTable(body)
 
                 for k, v in pairs(contributors) do
@@ -220,7 +222,16 @@ function PANEL:Init()
                 end
 
                 self:rebuildContributors()
-            end, function(message) end, {})
+            end, function(message)
+                if (message == "Couldn't resolve host name" and #PLUGIN.contributorData == 0) then
+                    PLUGIN.contributorData = {
+                        {url = "https://github.com/Chessnut", avatar_url = "", name = "Chessnut"},
+                        {url = "https://github.com/rebel1324", avatar_url = "", name = "rebel1324"}
+                    }
+                end
+
+                self:rebuildContributors()
+            end, {})
     else
         self:rebuildContributors()
     end
