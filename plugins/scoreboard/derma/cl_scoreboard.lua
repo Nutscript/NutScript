@@ -169,15 +169,30 @@ local PANEL = {}
 		slot.name:SetTextColor(nut.config.get("colorText", color_white))
 		slot.name:SetExpensiveShadow(1, color_black)
 
+		if client ~= LocalPlayer() then
+			slot.mute = slot:Add("DImageButton")
+			slot.mute:DockMargin(5, 15, 0, 0)
+			slot.mute:Dock(RIGHT)
+			slot.mute:SetWide(30)
+			slot.mute:Hide()
+		end
+
 		slot.ping = slot:Add("DLabel")
 		slot.ping:SetPos(self:GetWide() - 48, 0)
 		slot.ping:SetSize(48, 64)
 		slot.ping:SetText("0")
 		slot.ping.Think = function(this)
 			if (IsValid(client)) then
-				this:SetText(client:Ping())
+				local ping = client:Ping()
+				local text = this:GetText()
+				if text ~= ping then
+					this:SetText(ping)
+					this:SizeToContentsX()
+					this:SetPos(self:GetWide() - (24 + (string.len(this:GetText()) * 4)))
+				end
 			end
 		end
+
 		slot.ping:SetFont("nutGenericFont")
 		slot.ping:SetContentAlignment(6)
 		slot.ping:SetTextColor(nut.config.get("colorText", color_white))
@@ -236,6 +251,24 @@ local PANEL = {}
 
 			if (not IsValid(entity)) then
 				return
+			end
+
+			if nut.config.get("allowVoice", false) then
+				if IsValid(self.mute) then
+					self.mute:Show()
+					self.ping:SetTall(48)
+
+					local isMuted = client:IsMuted()
+					self.mute:SetImage(isMuted and "icon32/muted.png" or "icon32/unmuted.png")
+					self.mute.DoClick = function()
+						client:SetMuted(not isMuted)
+					end
+				end
+			else
+				if IsValid(self.mute) then
+					self.mute:Hide()
+					self.ping:SetTall(64)
+				end
 			end
 
 			if (self.lastModel ~= model or self.lastSkin ~= skin) then
