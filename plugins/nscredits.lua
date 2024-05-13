@@ -1,15 +1,12 @@
 
 local PLUGIN = PLUGIN
 
-PLUGIN.name = "Credits Tab"
-PLUGIN.desc = "A tab where players can see who made the framework/schema"
-PLUGIN.author = "NS Team"
+PLUGIN.name = "Credits Page"
+PLUGIN.desc = "Adds an always up to date page listing contributors to the framework."
+PLUGIN.author = "Miyoglow"
 
-if SERVER then return end
+if (SERVER) then return end
 
-PLUGIN.excludeList = {
-    ["github_username_here"] = true
-}
 PLUGIN.nsCreators = {
     ["Chessnut"] = true,
     ["rebel1324"] = true,
@@ -19,20 +16,35 @@ PLUGIN.nsMaintainers = {
     ["zoephix"] = true
 }
 
+PLUGIN.excludeList = PLUGIN.excludeList or {
+    [8109941] = true,
+    [33399712] = true,
+    [96260021] = true,
+    [41455508] = true
+}
+PLUGIN.contributorData = PLUGIN.contributorData or {
+    {url = "https://github.com/Chessnut", avatar_url = "https://avatars.githubusercontent.com/u/1689094?v=4", name = "Chessnut", id = 1689094},
+    {url = "https://github.com/rebel1324", avatar_url = "https://avatars.githubusercontent.com/u/2784192?v=4", name = "rebel1324", id = 2784192}
+}
+
+PLUGIN.fetchedBlocklist = PLUGIN.fetchedBlocklist or false
+PLUGIN.fetchedContributors = PLUGIN.fetchedContributors or false
+
 local creatorHeight = ScreenScale(32)
 local maintainerHeight = ScreenScale(32)
 local contributorWidth = ScreenScale(32)
 
-PLUGIN.contributorData = PLUGIN.contributorData or {}
+local contributorPadding = 8
+local contributorMargin = 16
 
 surface.CreateFont("nutSmallCredits", {
-    font = "Roboto Th",
+    font = "Segoe UI Light",
     size = ScreenScale(6),
     weight = 100
 })
 
 surface.CreateFont("nutBigCredits", {
-    font = "Roboto Th",
+    font = "Segoe UI Light",
     size = ScreenScale(12),
     weight = 100
 })
@@ -106,9 +118,10 @@ function PANEL:newRow()
                 v:DockMargin(0, 0, 0, 0)
             end
 
-            totalWidth = totalWidth + v:GetWide() + v:GetDockMargin()
+            local childWidth = v:GetWide() + v:GetDockMargin()
+            totalWidth = totalWidth + childWidth
 
-            if (totalWidth > self:GetWide()) then
+            if (totalWidth > self:GetWide() and childWidth < self:GetWide()) then
                 v:SetParent(self:newRow())
             end
         end
@@ -132,9 +145,6 @@ end
 vgui.Register("CreditsLogo", PANEL, "Panel")
 
 PANEL = {}
-
-local CONTRIB_PADDING = 8
-local CONTRIB_MARGIN = 16
 
 function PANEL:Init()
     if nut.gui.creditsPanel then
@@ -204,35 +214,71 @@ function PANEL:Init()
 
     self.contribList = self:Add("DIconLayout")
     self.contribList:Dock(TOP)
-    self.contribList:SetSpaceX(CONTRIB_MARGIN)
-    self.contribList:SetSpaceY(CONTRIB_MARGIN)
+    self.contribList:SetSpaceX(contributorMargin)
+    self.contribList:SetSpaceY(contributorMargin)
 
-    -- if it's less than 3 we've either never opened the credits before or we did but could not make the connection so we only have the fallback data
-    if (#PLUGIN.contributorData < 3) then
-        http.Fetch("https://api.github.com/repos/NutScript/NutScript/contributors?per_page=100",
+    local fetchingBlocklist
+    local fetchingContributors
+
+    if (!PLUGIN.fetchedBlocklist) then
+        fetchingBlocklist = true
+
+        http.Fetch("https://api.github.com/gists/ea66a13182db2a0747e930bf84e40692",
             function(body, length, headers, code)
-                PLUGIN.contributorData = {}
+                PLUGIN.fetchedBlocklist = true
+                fetchingBlocklist = false
 
-                local contributors = util.JSONToTable(body)
+                local data = util.JSONToTable(body)
 
-                for k, v in pairs(contributors) do
-                    if (not PLUGIN.excludeList[v.login]) then
-                        table.insert(PLUGIN.contributorData, {url = v.html_url, avatar_url = v.avatar_url, name = v.login})
+                if (data and data.files and data.files["blocklist.txt"]) then
+                    local lines = string.Explode("\n", data.files["blocklist.txt"].content or "")
+                    local blocklist = {}
+
+                    for _, v in ipairs(lines) do
+                        if (string.sub(v, 1, 2) != "//") then
+                            PLUGIN.excludeList[tonumber(v)] = true
+                        end
                     end
                 end
 
-                self:rebuildContributors()
+                if (!fetchingContributors and IsValid(self)) then
+                    self:rebuildContributors()
+                end
             end, function(message)
-                if (message == "Couldn't resolve host name" and #PLUGIN.contributorData == 0) then
-                    PLUGIN.contributorData = {
-                        {url = "https://github.com/Chessnut", avatar_url = "", name = "Chessnut"},
-                        {url = "https://github.com/rebel1324", avatar_url = "", name = "rebel1324"}
-                    }
+                if (!fetchingContributors and IsValid(self)) then
+                    self:rebuildContributors()
+                end
+            end, {}
+        )
+    end
+
+    if (!PLUGIN.fetchedContributors) then
+        fetchingContributors = true
+
+        http.Fetch("https://api.github.com/repos/NutScript/NutScript/contributors?per_page=50",
+            function(body, length, headers, code)
+                PLUGIN.contributorData = {}
+                PLUGIN.fetchedContributors = true
+                fetchingContributors = false
+
+                local contributors = util.JSONToTable(body)
+
+                for k, v in pairs(contributors or {}) do
+                    table.insert(PLUGIN.contributorData, {url = v.html_url, avatar_url = v.avatar_url, name = v.login, id = v.id})
                 end
 
-                self:rebuildContributors()
-            end, {})
-    else
+                if (!fetchingBlocklist and IsValid(self)) then
+                    self:rebuildContributors()
+                end
+            end, function(message)
+                if (!fetchingBlocklist and IsValid(self)) then
+                    self:rebuildContributors()
+                end
+            end, {}
+        )
+    end
+
+    if (PLUGIN.fetchedContributors and PLUGIN.fetchedBlocklist) then
         self:rebuildContributors()
     end
 end
@@ -251,7 +297,7 @@ function PANEL:rebuildContributors()
 end
 
 function PANEL:loadContributor(contributor, bLoadNextChunk)
-    if (PLUGIN.contributorData[contributor]) then
+    if (PLUGIN.contributorData[contributor] and !PLUGIN.excludeList[PLUGIN.contributorData[contributor].id]) then
         local isCreator = PLUGIN.nsCreators[PLUGIN.contributorData[contributor].name]
         local isMaintainer = PLUGIN.nsMaintainers[PLUGIN.contributorData[contributor].name]
 
@@ -266,9 +312,9 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
         end
 
         container:Dock((isCreator or isMaintainer) and LEFT or NODOCK)
-        container:DockMargin(unpack((isCreator or isMaintainer) and {CONTRIB_MARGIN, 0, 0, 0} or {0, 0, 0, 0}))
+        container:DockMargin(unpack((isCreator or isMaintainer) and {contributorMargin, 0, 0, 0} or {0, 0, 0, 0}))
 
-        container:DockPadding(CONTRIB_PADDING, CONTRIB_PADDING, CONTRIB_PADDING, CONTRIB_PADDING)
+        container:DockPadding(contributorPadding, contributorPadding, contributorPadding, contributorPadding)
 
         container.highlightAlpha = 0
         container.Paint = function(this, width, height)
@@ -311,8 +357,8 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
             contributorPanel:SetMouseInputEnabled(false)
 
             contributorPanel:Dock((isCreator or isMaintainer) and LEFT or FILL)
-            contributorPanel:DockMargin(unpack((isCreator or isMaintainer) and {0, 0, CONTRIB_PADDING, 0} or {0, 0, 0, CONTRIB_PADDING}))
-            contributorPanel:SetWide(isCreator and creatorHeight - CONTRIB_PADDING * 2 or isMaintainer and maintainerHeight - CONTRIB_PADDING * 2 or 0)
+            contributorPanel:DockMargin(unpack((isCreator or isMaintainer) and {0, 0, contributorPadding, 0} or {0, 0, 0, contributorPadding}))
+            contributorPanel:SetWide(isCreator and creatorHeight - contributorPadding * 2 or isMaintainer and maintainerHeight - contributorPadding * 2 or 0)
 
             if (bLoadNextChunk) then
                 contributorPanel.OnFinishLoadingDocument = function(this, url)
@@ -342,10 +388,10 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
         button:SizeToContents()
 
         container:SetSize(
-            isCreator and button:GetWide() + creatorHeight + CONTRIB_PADDING
-            or isMaintainer and button:GetWide() + maintainerHeight + CONTRIB_PADDING
+            isCreator and button:GetWide() + creatorHeight + contributorPadding
+            or isMaintainer and button:GetWide() + maintainerHeight + contributorPadding
             or contributorWidth,
-            button:GetTall() + (BRANCH == "x86-64" and contributorWidth or CONTRIB_PADDING) + CONTRIB_PADDING
+            button:GetTall() + (BRANCH == "x86-64" and contributorWidth or contributorPadding) + contributorPadding
         )
     end
 end
