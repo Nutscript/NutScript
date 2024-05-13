@@ -193,10 +193,13 @@ if (CLIENT) then
 
 		local total = table.Count(client:GetWeapons())
 
-		local bInvert = NUT_CVAR_WEPSELECT_INVERT:GetBool()
-		local invprev, invnext = bind:find("invprev"), bind:find("invnext")
+		local invprev, invnext = isnumber(bind:find("invprev")), isnumber(bind:find("invnext"))
 
-		if (!bInvert and invprev or bInvert and invnext) then
+		if (NUT_CVAR_WEPSELECT_INVERT:GetBool()) then
+			invprev, invnext = invnext, invprev
+		end
+
+		if (invprev) then
 			self.index = self.index - 1
 			if (self.index < 1) then
 				self.index = total
@@ -204,7 +207,7 @@ if (CLIENT) then
 
 			self:onIndexChanged()
 			return true
-		elseif (!bInvert and invnext or bInvert and invprev) then
+		elseif (invnext) then
 			self.index = self.index + 1
 			if (self.index > total) then
 				self.index = 1
