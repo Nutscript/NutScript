@@ -8,26 +8,30 @@ PLUGIN.author = "Miyoglow"
 if (SERVER) then return end
 
 PLUGIN.nsCreators = {
-    ["Chessnut"] = true,
-    ["rebel1324"] = true,
+    -- Chessnut
+    [1689094] = true,
+
+    -- rebel1324
+    [2784192] = true
 }
 PLUGIN.nsMaintainers = {
-    ["TovarischPootis"] = true,
-    ["zoephix"] = true
+    -- TovarischPootis
+    [54110479] = true,
+
+    -- zoephix
+    [21306782] = true
+}
+PLUGIN.nameOverrides = {
+    [1689094] = "Chessnut",
+    [2784192] = "Black Tea"
 }
 
-PLUGIN.excludeList = PLUGIN.excludeList or {
-    [8109941] = true,
-    [33399712] = true,
-    [96260021] = true,
-    [41455508] = true
-}
 PLUGIN.contributorData = PLUGIN.contributorData or {
     {url = "https://github.com/Chessnut", avatar_url = "https://avatars.githubusercontent.com/u/1689094?v=4", name = "Chessnut", id = 1689094},
-    {url = "https://github.com/rebel1324", avatar_url = "https://avatars.githubusercontent.com/u/2784192?v=4", name = "rebel1324", id = 2784192}
+    {url = "https://github.com/rebel1324", avatar_url = "https://avatars.githubusercontent.com/u/2784192?v=4", name = "Black Tea", id = 2784192}
 }
+PLUGIN.encodedAvatarData = {}
 
-PLUGIN.fetchedBlocklist = PLUGIN.fetchedBlocklist or false
 PLUGIN.fetchedContributors = PLUGIN.fetchedContributors or false
 
 local creatorHeight = ScreenScale(32)
@@ -217,68 +221,36 @@ function PANEL:Init()
     self.contribList:SetSpaceX(contributorMargin)
     self.contribList:SetSpaceY(contributorMargin)
 
-    local fetchingBlocklist
-    local fetchingContributors
-
-    if (!PLUGIN.fetchedBlocklist) then
-        fetchingBlocklist = true
-
-        http.Fetch("https://api.github.com/gists/ea66a13182db2a0747e930bf84e40692",
-            function(body, length, headers, code)
-                PLUGIN.fetchedBlocklist = true
-                fetchingBlocklist = false
-
-                local data = util.JSONToTable(body)
-
-                if (data and data.files and data.files["blocklist.txt"]) then
-                    local lines = string.Explode("\n", data.files["blocklist.txt"].content or "")
-                    local blocklist = {}
-
-                    for _, v in ipairs(lines) do
-                        if (string.sub(v, 1, 2) != "//") then
-                            PLUGIN.excludeList[tonumber(v)] = true
-                        end
-                    end
-                end
-
-                if (!fetchingContributors and IsValid(self)) then
-                    self:rebuildContributors()
-                end
-            end, function(message)
-                if (!fetchingContributors and IsValid(self)) then
-                    self:rebuildContributors()
-                end
-            end, {}
-        )
-    end
-
     if (!PLUGIN.fetchedContributors) then
-        fetchingContributors = true
-
-        http.Fetch("https://api.github.com/repos/NutScript/NutScript/contributors?per_page=50",
-            function(body, length, headers, code)
+        HTTP({
+            url = "https://credits-cache.nutscript.xyz/contributors.json",
+            method = "GET",
+            success = function(code, body, headers)
                 PLUGIN.contributorData = {}
                 PLUGIN.fetchedContributors = true
-                fetchingContributors = false
 
                 local contributors = util.JSONToTable(body)
 
-                for k, v in pairs(contributors or {}) do
-                    table.insert(PLUGIN.contributorData, {url = v.html_url, avatar_url = v.avatar_url, name = v.login, id = v.id})
+                for k, data in ipairs(contributors or {}) do
+                    if (istable(data) and data.id) then
+                        data.avatar_url = "https://credits-cache.nutscript.xyz/" .. data.id
+                        data.url = "https://github.com/" .. data.login
+
+                        table.insert(PLUGIN.contributorData, data)
+                    end
                 end
 
-                if (!fetchingBlocklist and IsValid(self)) then
+                if (IsValid(self)) then
                     self:rebuildContributors()
                 end
-            end, function(message)
-                if (!fetchingBlocklist and IsValid(self)) then
+            end,
+            failed = function(message)
+                if (IsValid(self)) then
                     self:rebuildContributors()
                 end
-            end, {}
-        )
-    end
-
-    if (PLUGIN.fetchedContributors and PLUGIN.fetchedBlocklist) then
+            end
+        })
+    else
         self:rebuildContributors()
     end
 end
@@ -297,9 +269,9 @@ function PANEL:rebuildContributors()
 end
 
 function PANEL:loadContributor(contributor, bLoadNextChunk)
-    if (PLUGIN.contributorData[contributor] and !PLUGIN.excludeList[PLUGIN.contributorData[contributor].id]) then
-        local isCreator = PLUGIN.nsCreators[PLUGIN.contributorData[contributor].name]
-        local isMaintainer = PLUGIN.nsMaintainers[PLUGIN.contributorData[contributor].name]
+    if (PLUGIN.contributorData[contributor]) then
+        local isCreator = PLUGIN.nsCreators[PLUGIN.contributorData[contributor].id]
+        local isMaintainer = PLUGIN.nsMaintainers[PLUGIN.contributorData[contributor].id]
 
         local container = vgui.Create("Panel")
         
@@ -326,7 +298,6 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
 
             surface.SetDrawColor(ColorAlpha(nut.config.get("color"), this.highlightAlpha * 0.5))
             surface.SetMaterial((isCreator or isMaintainer) and nut.util.getMaterial("vgui/gradient-l") or nut.util.getMaterial("vgui/gradient-d"))
-            -- to textured rect or not to textured rect, that is the question
             surface.DrawTexturedRect(0, 0, width, height)
 
             surface.SetDrawColor(ColorAlpha(nut.config.get("color"), this.highlightAlpha))
@@ -347,51 +318,79 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
         end
         container:SetCursor("hand")
         container:SetTooltip(PLUGIN.contributorData[contributor].url)
+        
+        local avatar = container:Add("DHTML")
+        avatar:SetMouseInputEnabled(false)
+
+        avatar:Dock((isCreator or isMaintainer) and LEFT or FILL)
+        avatar:DockMargin(unpack((isCreator or isMaintainer) and {0, 0, contributorPadding, 0} or {0, 0, 0, contributorPadding}))
+        avatar:SetWide(isCreator and creatorHeight - contributorPadding * 2 or isMaintainer and maintainerHeight - contributorPadding * 2 or 0)
 
         if (BRANCH == "x86-64") then
-            local contributorPanel = container:Add("DHTML")
-            contributorPanel:SetHTML(
+            avatar:SetHTML(
                 "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\""
                 .. PLUGIN.contributorData[contributor].avatar_url .. "\">"
             )
-            contributorPanel:SetMouseInputEnabled(false)
-
-            contributorPanel:Dock((isCreator or isMaintainer) and LEFT or FILL)
-            contributorPanel:DockMargin(unpack((isCreator or isMaintainer) and {0, 0, contributorPadding, 0} or {0, 0, 0, contributorPadding}))
-            contributorPanel:SetWide(isCreator and creatorHeight - contributorPadding * 2 or isMaintainer and maintainerHeight - contributorPadding * 2 or 0)
-
-            if (bLoadNextChunk) then
-                contributorPanel.OnFinishLoadingDocument = function(this, url)
-                    -- load 3 at a time, nice balance between not eating up your cpu cycles and being quick to load all the avatars
-                    for i = 1, 3 do
-                        if (contributor + i > #PLUGIN.contributorData) then
-                            return
+        else
+            if (!PLUGIN.encodedAvatarData[contributor]) then
+                HTTP({
+                    url = PLUGIN.contributorData[contributor].avatar_url,
+                    method = "GET",
+                    success = function(code, body)
+                        PLUGIN.encodedAvatarData[contributor] = util.Base64Encode(body)
+        
+                        if (IsValid(avatar)) then
+                            avatar:SetHTML(
+                                "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"data:image/png;base64,"
+                                .. util.Base64Encode(body) .. "\">"
+                            )
                         end
-
-                        self:loadContributor(contributor + i, i == 3)
                     end
-                end
-            end
-        elseif (bLoadNextChunk) then
-            for i = 1, #PLUGIN.contributorData - 1 do
-                self:loadContributor(contributor + i)
+                })
+            else
+                avatar:SetHTML(
+                    "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"data:image/png;base64,"
+                    .. PLUGIN.encodedAvatarData[contributor] .. "\">"
+                )
             end
         end
 
-        local button = container:Add("DLabel")
-        button:SetMouseInputEnabled(false)
-        button:SetText(PLUGIN.contributorData[contributor].name)
-        button:SetContentAlignment(5)
+        if (bLoadNextChunk) then
+            avatar.OnFinishLoadingDocument = function(this, url)                    
+                local toLoad = 3
 
-        button:Dock((isCreator or isMaintainer) and FILL or BOTTOM)
-        button:SetFont((isCreator or isMaintainer) and "nutBigCredits" or "nutSmallCredits")
-        button:SizeToContents()
+                for i = 1, toLoad do
+                    if (contributor + i > #PLUGIN.contributorData) then
+                        return
+                    end
+
+                    if (BRANCH != "x86-64") then
+                        timer.Simple(0.1, function()
+                            if (IsValid(self)) then
+                                self:loadContributor(contributor + i, i == toLoad)
+                            end
+                        end)
+                    else
+                       self:loadContributor(contributor + i, i == toLoad)
+                    end
+                end
+            end
+        end
+
+        local name = container:Add("DLabel")
+        name:SetMouseInputEnabled(false)
+        name:SetText(PLUGIN.nameOverrides[PLUGIN.contributorData[contributor].id] or PLUGIN.contributorData[contributor].name)
+        name:SetContentAlignment(5)
+
+        name:Dock((isCreator or isMaintainer) and FILL or BOTTOM)
+        name:SetFont((isCreator or isMaintainer) and "nutBigCredits" or "nutSmallCredits")
+        name:SizeToContents()
 
         container:SetSize(
-            isCreator and button:GetWide() + creatorHeight + contributorPadding
-            or isMaintainer and button:GetWide() + maintainerHeight + contributorPadding
+            isCreator and name:GetWide() + creatorHeight + contributorPadding
+            or isMaintainer and name:GetWide() + maintainerHeight + contributorPadding
             or contributorWidth,
-            button:GetTall() + (BRANCH == "x86-64" and contributorWidth or contributorPadding) + contributorPadding
+            name:GetTall() + contributorWidth + contributorPadding
         )
     end
 end
