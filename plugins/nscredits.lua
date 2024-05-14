@@ -30,8 +30,8 @@ PLUGIN.contributorData = PLUGIN.contributorData or {
     {url = "https://github.com/Chessnut", avatar_url = "https://avatars.githubusercontent.com/u/1689094?v=4", name = "Chessnut", id = 1689094},
     {url = "https://github.com/rebel1324", avatar_url = "https://avatars.githubusercontent.com/u/2784192?v=4", name = "Black Tea", id = 2784192}
 }
-PLUGIN.encodedAvatarData = {}
 
+PLUGIN.encodedAvatarData = PLUGIN.encodedAvatarData or {}
 PLUGIN.fetchedContributors = PLUGIN.fetchedContributors or false
 
 local creatorHeight = ScreenScale(32)
@@ -326,33 +326,26 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
         avatar:DockMargin(unpack((isCreator or isMaintainer) and {0, 0, contributorPadding, 0} or {0, 0, 0, contributorPadding}))
         avatar:SetWide(isCreator and creatorHeight - contributorPadding * 2 or isMaintainer and maintainerHeight - contributorPadding * 2 or 0)
 
-        if (BRANCH == "x86-64") then
-            avatar:SetHTML(
-                "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\""
-                .. PLUGIN.contributorData[contributor].avatar_url .. "\">"
-            )
-        else
-            if (!PLUGIN.encodedAvatarData[contributor]) then
-                HTTP({
-                    url = PLUGIN.contributorData[contributor].avatar_url,
-                    method = "GET",
-                    success = function(code, body)
-                        PLUGIN.encodedAvatarData[contributor] = util.Base64Encode(body)
-        
-                        if (IsValid(avatar)) then
-                            avatar:SetHTML(
-                                "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"data:image/png;base64,"
-                                .. util.Base64Encode(body) .. "\">"
-                            )
-                        end
+        if (!PLUGIN.encodedAvatarData[contributor]) then
+            HTTP({
+                url = PLUGIN.contributorData[contributor].avatar_url,
+                method = "GET",
+                success = function(code, body)
+                    PLUGIN.encodedAvatarData[contributor] = util.Base64Encode(body)
+    
+                    if (IsValid(avatar)) then
+                        avatar:SetHTML(
+                            "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"data:image/png;base64,"
+                            .. PLUGIN.encodedAvatarData[contributor] .. "\">"
+                        )
                     end
-                })
-            else
-                avatar:SetHTML(
-                    "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"data:image/png;base64,"
-                    .. PLUGIN.encodedAvatarData[contributor] .. "\">"
-                )
-            end
+                end
+            })
+        else
+            avatar:SetHTML(
+                "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"data:image/png;base64,"
+                .. PLUGIN.encodedAvatarData[contributor] .. "\">"
+            )
         end
 
         if (bLoadNextChunk) then
