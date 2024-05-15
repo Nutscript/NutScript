@@ -7,31 +7,32 @@ PLUGIN.author = "Miyoglow"
 
 if (SERVER) then return end
 
-PLUGIN.nsCreators = {
+PLUGIN.NS_CREATORS = {
     -- Chessnut
     [1689094] = true,
-
     -- rebel1324
     [2784192] = true
 }
-PLUGIN.nsMaintainers = {
+PLUGIN.NS_MAINTAINERS = {
     -- TovarischPootis
     [54110479] = true,
-
     -- zoephix
     [21306782] = true
 }
-PLUGIN.nameOverrides = {
+PLUGIN.NAME_OVERRIDES = {
     [1689094] = "Chessnut",
     [2784192] = "Black Tea"
 }
 
+PLUGIN.CACHE_URL = "https://raw.githubusercontent.com/Miyoglow/NutScript/credits-cache"
+PLUGIN.MATERIAL_FOLDER = "ns/credits-cache"
+
 PLUGIN.contributorData = PLUGIN.contributorData or {
-    {url = "https://github.com/Chessnut", avatar_url = "https://avatars.githubusercontent.com/u/1689094?v=4", name = "Chessnut", id = 1689094},
-    {url = "https://github.com/rebel1324", avatar_url = "https://avatars.githubusercontent.com/u/2784192?v=4", name = "Black Tea", id = 2784192}
+    {id = 1689094, name = "Chessnut", login = "Chessnut"},
+    {id = 2784192, name = "Black Tea", login = "rebel1324"}
 }
 
-PLUGIN.encodedAvatarData = PLUGIN.encodedAvatarData or {}
+PLUGIN.avatarMaterials = PLUGIN.avatarMaterials or {}
 PLUGIN.fetchedContributors = PLUGIN.fetchedContributors or false
 
 local creatorHeight = ScreenScale(32)
@@ -117,6 +118,8 @@ function PANEL:newRow()
     self.currentRow.PerformLayout = function(this)
         local totalWidth = 0
 
+        local newRow
+
         for k, v in ipairs(this:GetChildren()) do
             if (k == 1) then
                 v:DockMargin(0, 0, 0, 0)
@@ -126,7 +129,8 @@ function PANEL:newRow()
             totalWidth = totalWidth + childWidth
 
             if (totalWidth > self:GetWide() and childWidth < self:GetWide()) then
-                v:SetParent(self:newRow())
+                newRow = newRow or self:newRow()
+                v:SetParent(newRow)
             end
         end
 
@@ -179,7 +183,7 @@ function PANEL:Init()
         gui.OpenURL("https://github.com/NutScript")
     end
 
-    if (table.Count(PLUGIN.nsCreators) > 0) then
+    if (table.Count(PLUGIN.NS_CREATORS) > 0) then
         self.creatorList = self:Add("nutCreditsSpecialList")
         self.creatorList:Dock(TOP)
         self.creatorList:SetText("Creators")
@@ -187,7 +191,7 @@ function PANEL:Init()
         self.creatorList:DockMargin(0, 0, 0, 4)
     end
 
-    if (table.Count(PLUGIN.nsMaintainers) > 0) then
+    if (table.Count(PLUGIN.NS_MAINTAINERS) > 0) then
         self.maintainerList = self:Add("nutCreditsSpecialList")
         self.maintainerList:Dock(TOP)
         self.maintainerList:SetText("Maintainers")
@@ -223,7 +227,7 @@ function PANEL:Init()
 
     if (!PLUGIN.fetchedContributors) then
         HTTP({
-            url = "https://credits-cache.nutscript.xyz/contributors.json",
+            url = PLUGIN.CACHE_URL .. "/contributors.json",
             method = "GET",
             success = function(code, body, headers)
                 PLUGIN.contributorData = {}
@@ -233,9 +237,6 @@ function PANEL:Init()
 
                 for k, data in ipairs(contributors or {}) do
                     if (istable(data) and data.id) then
-                        data.avatar_url = "https://credits-cache.nutscript.xyz/" .. data.id
-                        data.url = "https://github.com/" .. data.login
-
                         table.insert(PLUGIN.contributorData, data)
                     end
                 end
@@ -268,10 +269,43 @@ function PANEL:rebuildContributors()
     self:loadContributor(1, true)
 end
 
+PLUGIN.circleCache = PLUGIN.circleCache or {}
+
+-- draw.Circle, with cache added by miyo
+-- https://wiki.facepunch.com/gmod/surface.DrawPoly
+local drawCircle = function (x, y, r, s)
+    local c = PLUGIN.circleCache
+    local cir = {}
+
+    if (c[x] and c[x][y] and c[x][y][r][s] and c[x][y][r][s]) then
+        cir = c[x][y][r][s]
+    else
+        table.insert( cir, { x = x, y = y, u = 0.5, v = 0.5 } )
+        for i = 0, s do
+            local a = math.rad( ( i / s ) * -360 )
+            table.insert( cir, { x = x + math.sin( a ) * r, y = y + math.cos( a ) * r, u = math.sin( a ) / 2 + 0.5, v = math.cos( a ) / 2 + 0.5 } )
+        end
+
+        local a = math.rad( 0 ) -- This is needed for non absolute segment counts
+        table.insert( cir, { x = x + math.sin( a ) * r, y = y + math.cos( a ) * r, u = math.sin( a ) / 2 + 0.5, v = math.cos( a ) / 2 + 0.5 } )
+
+        c[x] = c[x] or {}
+        c[x][y] = c[x][y] or {}
+        c[x][y][r] = c[x][y][r] or {}
+        c[x][y][r][s] = cir
+
+        PLUGIN.circleCache = c
+    end
+
+	surface.DrawPoly( cir )
+end
+
 function PANEL:loadContributor(contributor, bLoadNextChunk)
-    if (PLUGIN.contributorData[contributor]) then
-        local isCreator = PLUGIN.nsCreators[PLUGIN.contributorData[contributor].id]
-        local isMaintainer = PLUGIN.nsMaintainers[PLUGIN.contributorData[contributor].id]
+    local contributorData = PLUGIN.contributorData[contributor]
+
+    if (contributorData) then
+        local isCreator = PLUGIN.NS_CREATORS[contributorData.id]
+        local isMaintainer = PLUGIN.NS_MAINTAINERS[contributorData.id]
 
         local container = vgui.Create("Panel")
         
@@ -310,69 +344,74 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
         end
         container.OnMousePressed = function(this, keyCode)
             if (keyCode == 107) then
-                gui.OpenURL(PLUGIN.contributorData[contributor].url)
+                gui.OpenURL("https://github.com/" .. contributorData.login)
             end
         end
         container.OnMouseWheeled = function(this, delta)
             self:OnMouseWheeled(delta)
         end
         container:SetCursor("hand")
-        container:SetTooltip(PLUGIN.contributorData[contributor].url)
+        container:SetTooltip("https://github.com/" .. contributorData.login)
         
-        local avatar = container:Add("DHTML")
+        local avatar = container:Add("Panel")
         avatar:SetMouseInputEnabled(false)
 
         avatar:Dock((isCreator or isMaintainer) and LEFT or FILL)
         avatar:DockMargin(unpack((isCreator or isMaintainer) and {0, 0, contributorPadding, 0} or {0, 0, 0, contributorPadding}))
         avatar:SetWide(isCreator and creatorHeight - contributorPadding * 2 or isMaintainer and maintainerHeight - contributorPadding * 2 or 0)
 
-        if (!PLUGIN.encodedAvatarData[contributor]) then
-            HTTP({
-                url = PLUGIN.contributorData[contributor].avatar_url,
-                method = "GET",
-                success = function(code, body)
-                    PLUGIN.encodedAvatarData[contributor] = util.Base64Encode(body)
-    
-                    if (IsValid(avatar)) then
-                        avatar:SetHTML(
-                            "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"data:image/png;base64,"
-                            .. PLUGIN.encodedAvatarData[contributor] .. "\">"
-                        )
-                    end
-                end
-            })
-        else
-            avatar:SetHTML(
-                "<style>body {overflow: hidden; margin:0;} img {height: 100%; width: 100%; border-radius: 50%;}</style><img src=\"data:image/png;base64,"
-                .. PLUGIN.encodedAvatarData[contributor] .. "\">"
-            )
+        avatar.Paint = function(this, width, height)
+            if (this.material) then
+                surface.SetMaterial(this.material)
+                surface.SetDrawColor(255, 255, 255, 255)
+	            drawCircle(width * 0.5, height * 0.5, width * 0.5, 64)
+            end
         end
 
         if (bLoadNextChunk) then
-            avatar.OnFinishLoadingDocument = function(this, url)                    
-                local toLoad = 3
+            avatar.OnFinishGettingMaterial = function(this, url)                    
+                local toLoad = 7
 
                 for i = 1, toLoad do
                     if (contributor + i > #PLUGIN.contributorData) then
                         return
                     end
 
-                    if (BRANCH != "x86-64") then
-                        timer.Simple(0.1, function()
-                            if (IsValid(self)) then
-                                self:loadContributor(contributor + i, i == toLoad)
-                            end
-                        end)
-                    else
-                       self:loadContributor(contributor + i, i == toLoad)
+                    self:loadContributor(contributor + i, i == toLoad)
+                end
+            end
+        end
+
+        if (!PLUGIN.avatarMaterials[contributor]) then
+            HTTP({
+                url = PLUGIN.CACHE_URL .. "/" .. contributorData.id,
+                method = "GET",
+                success = function(code, body)
+                    file.CreateDir(PLUGIN.MATERIAL_FOLDER)
+                    file.Write(PLUGIN.MATERIAL_FOLDER .. "/" .. tostring(contributorData.id) .. ".png", body)
+
+                    PLUGIN.avatarMaterials[contributor] = Material("data/" .. PLUGIN.MATERIAL_FOLDER .. "/" .. tostring(contributorData.id) .. ".png", "mips smooth")
+    
+                    if (IsValid(avatar)) then
+                        avatar.material = PLUGIN.avatarMaterials[contributor]
+
+                        if (avatar.OnFinishGettingMaterial) then
+                            avatar:OnFinishGettingMaterial()
+                        end
                     end
                 end
+            })
+        else
+            avatar.material = PLUGIN.avatarMaterials[contributor]
+
+            if (avatar.OnFinishGettingMaterial) then
+                avatar:OnFinishGettingMaterial()
             end
         end
 
         local name = container:Add("DLabel")
         name:SetMouseInputEnabled(false)
-        name:SetText(PLUGIN.nameOverrides[PLUGIN.contributorData[contributor].id] or PLUGIN.contributorData[contributor].name)
+        name:SetText(PLUGIN.NAME_OVERRIDES[contributorData.id] or contributorData.name)
         name:SetContentAlignment(5)
 
         name:Dock((isCreator or isMaintainer) and FILL or BOTTOM)
