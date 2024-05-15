@@ -25,6 +25,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4.1.5
       with:
+        token: ${{ secrets.PAT_TOV_NS }}
         ref: ${{ env.CACHE_BRANCH }}
         fetch-depth: 0
     - uses: actions/github-script@v7.0.1
@@ -114,6 +115,6 @@ jobs:
     - name: Push changes
       uses: ad-m/github-push-action@v0.8.0
       with:
-        github_token: ${{ secrets.PAT_TOV_NS }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
         branch: ${{ env.CACHE_BRANCH }}
         force: true
