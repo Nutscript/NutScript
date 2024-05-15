@@ -24,7 +24,7 @@ PLUGIN.NAME_OVERRIDES = {
     [2784192] = "Black Tea"
 }
 
-PLUGIN.CACHE_URL = "https://raw.githubusercontent.com/Miyoglow/NutScript/credits-cache"
+PLUGIN.CACHE_URL = "https://raw.githubusercontent.com/NutScript/NutScript/credits-cache"
 PLUGIN.MATERIAL_FOLDER = "ns/credits-cache"
 
 PLUGIN.contributorData = PLUGIN.contributorData or {
