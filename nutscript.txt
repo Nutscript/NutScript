@@ -1,7 +1,0 @@
-"nutscript"
-{
-	"base"		"sandbox"
-	"title"		"NutScript 1.2"
-	"author"	"Chessnut, Black Tea and the NutScript Community"
-	"category"	"rp"
-}

@@ -1,9 +1,0 @@
-ITEM.name = "Combine Armor"
-ITEM.desc = "Protects your insides from the outsides"
-ITEM.model = "models/props_c17/BriefCase001a.mdl"
-ITEM.width = 2
-ITEM.height = 2
-ITEM.outfitCategory = "body"
-
-ITEM.replacements = "models/player/combine_soldier.mdl"
-ITEM.newSkin = 1
