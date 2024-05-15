@@ -114,6 +114,6 @@ jobs:
     - name: Push changes
       uses: ad-m/github-push-action@v0.8.0
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.PAT_TOV_NS }}
         branch: ${{ env.CACHE_BRANCH }}
         force: true
