@@ -30,23 +30,25 @@ nut.command.add("pm", {
 })
 
 nut.command.add("reply", {
-	syntax = "<string message>",
-	onRun = function(client, arguments)
+	arguments = {
+		nut.type.string
+	},
+	onRun = function(client, message)
 		local target = client.nutLastPM
 
 		if (IsValid(target) and (client.nutNextPM or 0) < CurTime()) then
-			nut.chat.send(client, "pm", table.concat(arguments, " "), false, {client, target})
+			nut.chat.send(client, "pm", message, false, {client, target})
 			client.nutNextPM = CurTime() + 0.5
 		end
 	end
 })
 
 nut.command.add("setvoicemail", {
-	syntax = "[string message]",
-	onRun = function(client, arguments)
-		local message = table.concat(arguments, " ")
-
-		if (message:find("%S")) then
+	arguments = {
+		bit.bor(nut.type.string, nut.type.optional)
+	},
+	onRun = function(client, message)
+		if (message and message:find("%S")) then
 			client:setNutData("vm", message:sub(1, 240))
 
 			return "@vmSet"
@@ -60,54 +62,48 @@ nut.command.add("setvoicemail", {
 
 nut.command.add("flaggive", {
 	adminOnly = true,
-	syntax = "<string name> [string flags]",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
+	arguments = {
+		nut.type.character,
+		bit.bor(nut.type.string, nut.type.optional)
+	},
+	onRun = function(client, target, flags)
+		if (not flags) then
+			local available = ""
 
-		if (IsValid(target) and target:getChar()) then
-			local flags = arguments[2]
-
-			if (not flags) then
-				local available = ""
-
-				-- Aesthetics~~
-				for k in SortedPairs(nut.flag.list) do
-					if (not target:getChar():hasFlags(k)) then
-						available = available..k
-					end
+			-- Aesthetics~~
+			for k in SortedPairs(nut.flag.list) do
+				if (not target:hasFlags(k)) then
+					available = available..k
 				end
-
-				return client:requestString("@flagGiveTitle", "@flagGiveDesc", function(text)
-					nut.command.run(client, "flaggive", {target:Name(), text})
-				end, available)
 			end
 
-			target:getChar():giveFlags(flags)
-
-			nut.util.notifyLocalized("flagGive", nil, client:Name(), target:Name(), flags)
+			return client:requestString("@flagGiveTitle", "@flagGiveDesc", function(text)
+				nut.command.run(client, "flaggive", {target, text})
+			end, available)
 		end
+
+		target:giveFlags(flags)
+
+		nut.util.notifyLocalized("flagGive", nil, client:Name(), target:getName(), flags)
 	end
 })
 
 nut.command.add("flagtake", {
 	adminOnly = true,
-	syntax = "<string name> [string flags]",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target) and target:getChar()) then
-			local flags = arguments[2]
-
-			if (not flags) then
-				return client:requestString("@flagTakeTitle", "@flagTakeDesc", function(text)
-					nut.command.run(client, "flagtake", {target:Name(), text})
-				end, target:getChar():getFlags())
-			end
-
-			target:getChar():takeFlags(flags)
-
-			nut.util.notifyLocalized("flagTake", nil, client:Name(), flags, target:Name())
+	arguments = {
+		nut.type.character,
+		bit.bor(nut.type.string, nut.type.optional)
+	},
+	onRun = function(client, target, flags)
+		if (not flags) then
+			return client:requestString("@flagTakeTitle", "@flagTakeDesc", function(text)
+				nut.command.run(client, "flagtake", {target, text})
+			end, target:getFlags())
 		end
+
+		target:takeFlags(flags)
+
+		nut.util.notifyLocalized("flagTake", nil, client:Name(), flags, target:getName())
 	end
 })
 

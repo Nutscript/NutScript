@@ -99,3 +99,13 @@ nut.type.add("player", function(value)
 		return nut.util.findPlayer(value)
 	end
 end)
+nut.type.add("character", function(value)
+	if (isentity(value)) then
+		return value.getChar and value:GetChar()
+	end
+
+	if (isstring(value)) then
+		local client = nut.util.findPlayer(value)
+		return client and client:getChar()
+	end
+end)

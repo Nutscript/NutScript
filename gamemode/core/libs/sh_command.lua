@@ -93,9 +93,9 @@ function nut.command.add(name, data)
 		local onRun = data.onRun
 
 		data._onRun = data.onRun -- for refactoring purpose.
-		data.onRun = function(client, arguments)
+		data.onRun = function(client, ...)
 			if (hook.Run("CanPlayerUseCommand", client, name) or onCheckAccess(client)) then
-				return onRun(client, arguments)
+				return onRun(client, ...)
 			else
 				return "@noPerm"
 			end
@@ -224,57 +224,10 @@ if (SERVER) then
 	-- Forces a player to run a command.
 	function nut.command.run(client, command, arguments)
 		command = nut.command.list[command:lower()]
-
-		PrintTable(arguments)
+		arguments = arguments or {}
 
 		if (command) then
-			local results
-
-			-- new argument system
-			if (command.arguments) then
-				if (#arguments > #command.arguments) then
-					client:notify("Too many arguments provided, expected \'" .. #command.arguments .. "\' got \'" .. #arguments .. "\'")
-					return
-				end
-
-				for i, v in ipairs(command.arguments) do
-					local argument = arguments[i]
-					local nutType = command.arguments[i]
-					local bIsOptional = nut.type.isOptional(nutType)
-					nutType = bIsOptional and bit.bxor(nutType, nut.type.optional) or nutType
-
-					if (!bIsOptional) then
-						if (argument == nil or argument == "") then
-							client:notify("Missing argument #" .. i .. " expected \'" .. nut.type.getName(nutType) .. "\'")
-							return
-						end
-					end
-
-					if (argument) then
-						local assertion = nut.type.assert(nutType, argument)
-
-						if (assertion) then
-							if (!isbool(assertion)) then
-								arguments[i] = assertion
-							end
-						else
-							if (nut.type.getName(nutType) == "player") then
-								client:notify("Could not find player \'" .. argument .. "\'")
-							else
-								client:notify("Wrong type to #" .. i .. " argument, expected \'" .. nut.type.getName(nutType) .. "\' got \'" .. nut.type(argument) .. "\'")
-							end
-
-							return
-						end
-					end
-				end
-
-				results = {command.onRun(client, unpack(arguments))}
-			else
-				-- Run the command's callback and get the return.
-				results = {command.onRun(client, arguments or {})}
-			end
-
+			local results = {command.onRun(client, unpack(command.arguments and arguments or {arguments}))}
 			local result = results[1]
 
 			-- If a string is returned, it is a notification.
@@ -318,7 +271,62 @@ if (SERVER) then
 			if (command) then
 				-- Get the arguments like a console command.
 				if (!arguments) then
-					arguments = nut.command.extractArgs(text:sub(#match + 3))
+					-- new argument system
+					if (command.arguments) then
+						local length = #match + 3
+						arguments = nut.command.extractArgs(text:sub(length))
+
+						for i, v in ipairs(command.arguments) do
+							local nutType = command.arguments[i]
+							local bIsOptional = nut.type.isOptional(nutType)
+							nutType = bIsOptional and bit.bxor(nutType, nut.type.optional) or nutType
+
+							local argument = arguments[i]
+
+							if (argument and bit.band(nutType, nut.type.string) == nut.type.string and i == #command.arguments) then
+								argument = text:sub(length)
+								arguments[i] = argument
+		
+								for _ = i + 1, #arguments do
+									table.remove(arguments, i + 1)
+								end
+							end
+
+							length = length + string.len(argument or "") + 1
+
+							if (!bIsOptional) then
+								if (argument == nil or argument == "") then
+									client:notify("Missing argument #" .. i .. " expected \'" .. nut.type.getName(nutType) .. "\'")
+									return true
+								end
+							end
+
+							if (argument) then
+								local assertion = nut.type.assert(nutType, argument)
+
+								if (assertion) then
+									if (!isbool(assertion)) then
+										arguments[i] = assertion
+									end
+								else
+									if (nut.type.getName(nutType) == "player" or nut.type.getName(nutType) == "character") then
+										client:notify("Could not find the target \'" .. argument .. "\'")
+									else
+										client:notify("Wrong type to #" .. i .. " argument, expected \'" .. nut.type.getName(nutType) .. "\' got \'" .. nut.type(argument) .. "\'")
+									end
+		
+									return true
+								end
+							end
+						end
+
+						if (#arguments > #command.arguments) then
+							client:notify("Too many arguments provided, expected \'" .. #command.arguments .. "\' got \'" .. #arguments .. "\'")
+							return true
+						end
+					else
+						arguments = nut.command.extractArgs(text:sub(#match + 3))
+					end
 				end
 
 				-- Runs the actual command.
