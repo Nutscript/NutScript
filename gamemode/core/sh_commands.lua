@@ -1,29 +1,30 @@
+
 nut.command.add("roll", {
-	syntax = "[number maximum]",
-	onRun = function(client, arguments)
-		nut.chat.send(client, "roll", math.random(0, math.min(tonumber(arguments[1]) or 100, 100)))
+	arguments = {
+		bit.bor(nut.type.number, nut.type.optional)
+	},
+	onRun = function(client, maximum)
+		nut.chat.send(client, "roll", math.random(0, math.min(tonumber(maximum) or 100, 100)))
 	end
 })
 
 nut.command.add("pm", {
-	syntax = "<string target> <string message>",
-	onRun = function(client, arguments)
-		local message = table.concat(arguments, " ", 2)
-		local target = nut.command.findPlayer(client, arguments[1])
+	arguments = {
+		nut.type.player,
+		nut.type.string
+	},
+	onRun = function(client, target, message)
+		local voiceMail = target:getNutData("vm")
 
-		if (IsValid(target)) then
-			local voiceMail = target:getNutData("vm")
+		if (voiceMail and voiceMail:find("%S")) then
+			return target:Name()..": "..voiceMail
+		end
 
-			if (voiceMail and voiceMail:find("%S")) then
-				return target:Name()..": "..voiceMail
-			end
+		if ((client.nutNextPM or 0) < CurTime()) then
+			nut.chat.send(client, "pm", message, false, {client, target})
 
-			if ((client.nutNextPM or 0) < CurTime()) then
-				nut.chat.send(client, "pm", message, false, {client, target})
-
-				client.nutNextPM = CurTime() + 0.5
-				target.nutLastPM = client
-			end
+			client.nutNextPM = CurTime() + 0.5
+			target.nutLastPM = client
 		end
 	end
 })
