@@ -278,7 +278,7 @@ local drawCircle = function (x, y, r, s)
     local c = PLUGIN.circleCache
     local cir = {}
 
-    if (c[x] and c[x][y] and c[x][y][r][s] and c[x][y][r][s]) then
+    if (c[x] and c[x][y] and c[x][y][r] and c[x][y][r][s]) then
         cir = c[x][y][r][s]
     else
         table.insert( cir, { x = x, y = y, u = 0.5, v = 0.5 } )
@@ -298,6 +298,14 @@ local drawCircle = function (x, y, r, s)
         PLUGIN.circleCache = c
     end
 
+    render.SetStencilWriteMask(0xFF)
+    render.SetStencilTestMask(0xFF)
+    render.SetStencilReferenceValue(0)
+    render.SetStencilCompareFunction(STENCIL_ALWAYS)
+    render.SetStencilPassOperation(STENCIL_KEEP)
+    render.SetStencilFailOperation(STENCIL_KEEP)
+    render.SetStencilZFailOperation(STENCIL_KEEP)
+    render.ClearStencil()
 	surface.DrawPoly( cir )
 end
 
