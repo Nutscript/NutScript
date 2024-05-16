@@ -13,12 +13,7 @@ PLUGIN.NS_CREATORS = {
     -- rebel1324
     [2784192] = true
 }
-PLUGIN.NS_MAINTAINERS = {
-    -- TovarischPootis
-    [54110479] = true,
-    -- zoephix
-    [21306782] = true
-}
+
 PLUGIN.NAME_OVERRIDES = {
     [1689094] = "Chessnut",
     [2784192] = "Black Tea"
@@ -183,21 +178,18 @@ function PANEL:Init()
         gui.OpenURL("https://github.com/NutScript")
     end
 
-    if (table.Count(PLUGIN.NS_CREATORS) > 0) then
-        self.creatorList = self:Add("nutCreditsSpecialList")
-        self.creatorList:Dock(TOP)
-        self.creatorList:SetText("Creators")
-        self.creatorList:SetRowHeight(creatorHeight)
-        self.creatorList:DockMargin(0, 0, 0, 4)
-    end
+    self.creatorList = self:Add("nutCreditsSpecialList")
+    self.creatorList:Dock(TOP)
+    self.creatorList:SetText("Creators")
+    self.creatorList:SetRowHeight(creatorHeight)
+    self.creatorList:DockMargin(0, 0, 0, 4)
 
-    if (table.Count(PLUGIN.NS_MAINTAINERS) > 0) then
-        self.maintainerList = self:Add("nutCreditsSpecialList")
-        self.maintainerList:Dock(TOP)
-        self.maintainerList:SetText("Maintainers")
-        self.maintainerList:SetRowHeight(maintainerHeight)
-        self.maintainerList:DockMargin(0, 0, 0, 4)
-    end
+    self.maintainerList = self:Add("nutCreditsSpecialList")
+    self.maintainerList:Dock(TOP)
+    self.maintainerList:SetText("Maintainers")
+    self.maintainerList:SetRowHeight(maintainerHeight)
+    self.maintainerList:DockMargin(0, 0, 0, 4)
+    self.maintainerList:SetVisible(false)
 
     local seperator = self:Add("Panel")
     seperator:Dock(TOP)
@@ -265,6 +257,15 @@ function PANEL:rebuildContributors()
         self.maintainerList:Clear()
     end
 
+    if (!self.maintainerList:IsVisible()) then
+        for _, v in ipairs(PLUGIN.contributorData) do
+            if (v.maintainer) then
+                self.maintainerList:SetVisible(true)
+                break
+            end
+        end
+    end
+
     self.contribList:Clear()
     self:loadContributor(1, true)
 end
@@ -305,10 +306,10 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
 
     if (contributorData) then
         local isCreator = PLUGIN.NS_CREATORS[contributorData.id]
-        local isMaintainer = PLUGIN.NS_MAINTAINERS[contributorData.id]
+        local isMaintainer = contributorData.maintainer
 
         local container = vgui.Create("Panel")
-        
+
         if (isCreator) then
             self.creatorList:Add(container)
         elseif (isMaintainer) then
@@ -369,8 +370,8 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
         end
 
         if (bLoadNextChunk) then
-            avatar.OnFinishGettingMaterial = function(this, url)                    
-                local toLoad = 7
+            avatar.OnFinishGettingMaterial = function(this, all)
+                local toLoad = (all and #PLUGIN.contributorData - 1) or 7
 
                 for i = 1, toLoad do
                     if (contributor + i > #PLUGIN.contributorData) then
@@ -384,7 +385,7 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
 
         if (!PLUGIN.avatarMaterials[contributor]) then
             HTTP({
-                url = PLUGIN.CACHE_URL .. "/" .. contributorData.id,
+                url = PLUGIN.CACHE_URL .. "/" .. tostring(contributorData.id),
                 method = "GET",
                 success = function(code, body)
                     file.CreateDir(PLUGIN.MATERIAL_FOLDER)
@@ -405,7 +406,7 @@ function PANEL:loadContributor(contributor, bLoadNextChunk)
             avatar.material = PLUGIN.avatarMaterials[contributor]
 
             if (avatar.OnFinishGettingMaterial) then
-                avatar:OnFinishGettingMaterial()
+                avatar:OnFinishGettingMaterial(true)
             end
         end
 
