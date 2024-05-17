@@ -4,21 +4,35 @@ nut.command.list = nut.command.list or {}
 
 local COMMAND_PREFIX = "/"
 
+local function buildTypeName(types, bIsOr)
+	local name = ""
+
+	for k, v in ipairs(types) do
+		if (isfunction(v)) then
+			name = name .. "(" .. buildTypeName(nut.type.getMultiple(v), nut.types.ors[v]) .. ")"
+		else
+			name = name .. v .. (k != #types and (bIsOr and "|" or "&") or "")
+		end
+	end
+
+	return name
+end
+
 function nut.command.add(name, data)
 	if (!isstring(name)) then
-		return ErrorNoHaltWithStack("nut.command.add expected string for #1 argument but got: " .. nut.type.getName(nut.type(name)))
+		return ErrorNoHaltWithStack("nut.command.add expected string for #1 argument but got: " .. type(name))
 	end
 
 	if (!istable(data)) then
-		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected table for #2 argument but got: " .. nut.type.getName(nut.type(data)))
+		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected table for #2 argument but got: " .. type(data))
 	end
 
 	if (!isfunction(data.onRun)) then
-		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected an onRun function in #2 argument but got: " .. nut.type.getName(nut.type(data.onRun)))
+		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected an onRun function in #2 argument but got: " .. type(data.onRun))
 	end
 
 	-- new argument system
-	if (isnumber(data.arguments)) then
+	if (isstring(data.arguments) or isfunction(data.arguments)) then
 		data.arguments = {data.arguments}
 	end
 
@@ -31,16 +45,27 @@ function nut.command.add(name, data)
 		for i, v in ipairs(data.arguments) do
 			local argumentName = debug.getlocal(data.onRun, i + 1)
 
-			if (nut.type.isOptional(v)) then
+			local types = nut.type.getMultiple(v)
+			local bIsOr = nut.type.ors[v]
+			local bIsOptional = bIsOr and table.HasValue(types, nut.type.optional)
+
+			if (bIsOptional) then
 				hadOptionalArgument = true
 			elseif (hadOptionalArgument) then
 				return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") a required argument is after an optional argument, optional arguments must be last")
 			end
 
-			local typeName = nut.type.getName(v)
+			-- we don't want 'optional' text showing up in the argument syntax
+			for k, nutType in pairs(types) do
+				if (nutType == nut.type.optional) then
+					types[k] = nil
+				end
+			end
+
+			local typeName = buildTypeName(types, bIsOr)
 
 			if (argumentName) then
-				table.insert(syntaxes, nut.type.isOptional(v) and "[" .. typeName .. ": " .. argumentName .. "]" or "<" .. typeName .. ": " .. argumentName .. ">")
+				table.insert(syntaxes, bIsOptional and "[" .. typeName .. ": " .. argumentName .. "]" or "<" .. typeName .. ": " .. argumentName .. ">")
 			else
 				table.insert(missingArguments, typeName)
 			end
@@ -282,59 +307,59 @@ if (SERVER) then
 						local length = #match + 3
 						arguments = nut.command.extractArgs(text:sub(length))
 
-						for i, v in ipairs(command.arguments) do
-							local nutType = command.arguments[i]
-							local bIsOptional = nut.type.isOptional(nutType)
-							nutType = bIsOptional and bit.bxor(nutType, nut.type.optional) or nutType
+						for k, v in ipairs(command.arguments) do
+							local argument = arguments[k]
 
-							local argument = arguments[i]
-
-							if (argument and i == #command.arguments) then
+							if (argument and k == #command.arguments) then
 								argument = text:sub(length)
-								arguments[i] = argument
+								arguments[k] = argument
 		
-								for _ = i + 1, #arguments do
-									table.remove(arguments, i + 1)
+								for _ = k + 1, #arguments do
+									table.remove(arguments, k + 1)
 								end
 							end
 
 							length = length + string.len(argument or "") + 1
 
+							local types = nut.type.getMultiple(v)
+							local bIsOr = nut.type.ors[v]
+							local bIsOptional = bIsOr and table.HasValue(types, nut.type.optional)
+
+							-- we don't want 'optional' text showing up in the argument syntax
+							for k, nutType in pairs(types) do
+								if (nutType == nut.type.optional) then
+									types[k] = nil
+								end
+							end
+
+							local typeName = buildTypeName(types, bIsOr)
+
 							if (!bIsOptional) then
 								if (argument == nil or argument == "") then
-									client:notify("Missing argument #" .. i .. " expected \'" .. nut.type.getName(nutType) .. "\'")
+									client:notify("Missing argument #" .. k .. " expected \'" .. typeName .. "\'")
 									return true
 								end
 							end
 
 							if (argument) then
-								local multipleTypes = table.Reverse(nut.type.getMultiple(nutType))
-								local failed
+								local resolve, failString = nut.type.resolve(v, argument)
+								local success
 
-								-- string types are an early bit value in types, but we want to parse/assert them last, so go through the types we have backwards
-								for i = #multipleTypes, 1, -1 do
-									local v = multipleTypes[i]
-									local assertion = nut.type.assert(v, argument)
-
-									if (assertion) then
-										failed = nil
-
-										if (!isbool(assertion)) then
-											arguments[i] = assertion
-										end
-
-										break
-									else
-										if (nut.type.getName(v) == "player" or nut.type.getName(v) == "character") then
-											failed = "Could not find the target \'" .. argument .. "\'"
-										else
-											failed = "Wrong type to #" .. i .. " argument, expected \'" .. nut.type.getName(nutType) .. "\' got \'" .. nut.type.getName(nut.type(argument)) .. "\'"
-										end
-									end
+								if (isfunction(v)) then
+									success = v(resolve or argument)
+								else
+									success = nut.type.assert(v, resolve) or nut.type.assert(v, argument)
 								end
 
-								if (failed) then
-									client:notify(failed)
+								if (success) then
+									arguments[k] = resolve or arguments[k]
+								else
+									if (failString) then
+										client:notify(failString)
+									else
+										client:notify("Wrong type to #" .. k .. " argument, expected \'" .. typeName .. "\' got \'" .. nut.type(resolve or argument) .. "\'")
+									end
+
 									return true
 								end
 							end

@@ -1,6 +1,6 @@
 
 nut.command.add("roll", {
-	arguments = bit.bor(nut.type.number, nut.type.optional),
+	arguments = nut.type.tor(nut.type.number, nut.type.optional),
 	onRun = function(client, maximum)
 		nut.chat.send(client, "roll", math.random(0, math.min(tonumber(maximum) or 100, 100)))
 	end
@@ -42,7 +42,7 @@ nut.command.add("reply", {
 })
 
 nut.command.add("setvoicemail", {
-	arguments = bit.bor(nut.type.string, nut.type.optional),
+	arguments = nut.type.tor(nut.type.string, nut.type.optional),
 	onRun = function(client, message)
 		if (message and message:find("%S")) then
 			client:setNutData("vm", message:sub(1, 240))
@@ -60,7 +60,7 @@ nut.command.add("flaggive", {
 	adminOnly = true,
 	arguments = {
 		nut.type.character,
-		bit.bor(nut.type.string, nut.type.optional)
+		nut.type.tor(nut.type.string, nut.type.optional)
 	},
 	onRun = function(client, target, flags)
 		if (not flags) then
@@ -88,7 +88,7 @@ nut.command.add("flagtake", {
 	adminOnly = true,
 	arguments = {
 		nut.type.character,
-		bit.bor(nut.type.string, nut.type.optional)
+		nut.type.tor(nut.type.string, nut.type.optional)
 	},
 	onRun = function(client, target, flags)
 		if (not flags) then
@@ -136,7 +136,7 @@ nut.command.add("charsetbodygroup", {
 	arguments = {
 		nut.type.character,
 		nut.type.string,
-		bit.bor(nut.type.number, nut.type.optional)
+		nut.type.tor(nut.type.number, nut.type.optional)
 	},
 	onRun = function(client, target, bodygroup, value)
 		local index = target:getPlayer():FindBodygroupByName(bodygroup)
@@ -162,7 +162,7 @@ nut.command.add("charsetname", {
 	adminOnly = true,
 	arguments = {
 		nut.type.character,
-		bit.bor(nut.type.string, nut.type.optional)
+		nut.type.tor(nut.type.string, nut.type.optional)
 	},
 	onRun = function(client, target, name)
 		if (not name) then
@@ -181,7 +181,7 @@ nut.command.add("chargiveitem", {
 	arguments = {
 		nut.type.character,
 		nut.type.item,
-		bit.bor(nut.type.number, nut.type.optional),
+		nut.type.tor(nut.type.number, nut.type.optional),
 	},
 	onRun = function(client, target, name, amount)
 		local item = name.uniqueID
@@ -227,7 +227,7 @@ nut.command.add("charban", {
 
 nut.command.add("charunban", {
 	adminOnly = true,
-	arguments = bit.bor(nut.type.character, nut.type.string),
+	arguments = nut.type.tor(nut.type.character, nut.type.string),
 	onRun = function(client, target)
 		if ((client.nutNextSearch or 0) >= CurTime()) then
 			return L("charSearching", client)
@@ -396,7 +396,7 @@ nut.command.add("plyunwhitelist", {
 })
 
 nut.command.add("fallover", {
-	arguments = bit.bor(nut.type.number, nut.type.optional),
+	arguments = nut.type.tor(nut.type.number, nut.type.optional),
 	onRun = function(client, time)
 		if (not isnumber(time)) then
 			time = 5
@@ -415,42 +415,20 @@ nut.command.add("fallover", {
 })
 
 nut.command.add("beclass", {
-	arguments = nut.type.number,
-	onRun = function(client, class)
+	arguments = nut.type.class,
+	onRun = function(client, name)
+		local class = name
+
 		local char = client:getChar()
 
 		if (IsValid(client) and char) then
-			local num = isnumber(tonumber(class)) and tonumber(class) or -1
-
-			if (nut.class.list[num]) then
-				local v = nut.class.list[num]
-
-				if (char:joinClass(num)) then
-					client:notifyLocalized("becomeClass", L(v.name, client))
-
-					return
-				else
-					client:notifyLocalized("becomeClassFail", L(v.name, client))
-
-					return
-				end
+			if (char:joinClass(class.index)) then
+				client:notifyLocalized("becomeClass", L(class.name, client))
+				return
 			else
-				for k, v in ipairs(nut.class.list) do
-					if (nut.util.stringMatches(v.uniqueID, class) or nut.util.stringMatches(L(v.name, client), class)) then
-						if (char:joinClass(k)) then
-							client:notifyLocalized("becomeClass", L(v.name, client))
-
-							return
-						else
-							client:notifyLocalized("becomeClassFail", L(v.name, client))
-
-							return
-						end
-					end
-				end
+				client:notifyLocalized("becomeClassFail", L(class.name, client))
+				return
 			end
-
-			client:notifyLocalized("invalid", L("class", client))
 		else
 			client:notifyLocalized("illegalAccess")
 		end
@@ -458,7 +436,7 @@ nut.command.add("beclass", {
 })
 
 nut.command.add("chardesc", {
-	arguments = bit.bor(nut.type.string, nut.type.optional),
+	arguments = nut.type.tor(nut.type.string, nut.type.optional),
 	onRun = function(client, desc)
 		if (not desc or not desc:find("%S")) then
 			return client:requestString("@chgDesc", "@chgDescDesc", function(text)
