@@ -7,17 +7,23 @@ nut.type.bitsum = nut.type.bitsum  or 0
 -- _G.type but for nut.type
 function nut.type.type(...)
 	local value = select(1, ...)
-	value = (istable(value) and value == nut.type) and select(2, ...) or value
+
+	if (istable(value) and value == nut.type) then
+		value = select(2, ...)
+	end
 
 	if (istable(value)) then
-		if (value.nutType and nut.type.map[value.nutType]) then
-			return nut.type.types[nut.type.map[value.nutType]].name
+		if (value.nutType) then
+			return value.nutType
 		end
+	end
 
-		for _, v in ipairs(nut.type.types) do
-			if (v.assertion and v.assertion(value)) then
-				return v.name
-			end
+	-- basic types (strings, numbers, bools) are early in the bit values, go through the types list backwards to parse complex types first
+	-- as they could use isstring, isnumber, isbool calls to narrow the assertion and give useful returns
+	for i = #nut.type.types, 1, -1 do
+		local v = nut.type.types[i]
+		if (v.assertion and v.assertion(value)) then
+			return nut.type[v.name]
 		end
 	end
 
@@ -94,7 +100,7 @@ function nut.type.getName(nutType)
 			return nut.type.getName(xor)
 		end
 	-- could be multiple types, lets see if it is
-	else
+	elseif (isnumber(nutType)) then
 		local types = nut.type.getMultiple(nutType)
 
 		if (#types > 0) then
@@ -106,6 +112,8 @@ function nut.type.getName(nutType)
 
 			return table.concat(typeNames, "|")
 		end
+	elseif (isstring(nutType)) then
+		return nutType
 	end
 end
 
@@ -115,6 +123,8 @@ nut.type.add("optional")
 function nut.type.isOptional(num)
 	return isnumber(num) and bit.band(num, nut.type.optional) == nut.type.optional
 end
+
+-- may move this kind of parsing/searching through values to the commands or util library instead, and reference it there
 
 nut.type.add("string", function(value) return isstring(value) end)
 nut.type.add("number", function(value) return isnumber(tonumber(value)) end)
@@ -131,7 +141,7 @@ nut.type.add("player", function(value)
 end)
 nut.type.add("character", function(value)
 	if (istable(value)) then
-		return GetMetaTable(value) == nut.meta.character and true
+		return getmetatable(value) == nut.meta.character and value
 	end
 
 	if (isentity(value)) then

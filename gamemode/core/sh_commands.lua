@@ -233,7 +233,7 @@ nut.command.add("charunban", {
 			return L("charSearching", client)
 		end
 
-		if (target.getPlayer) then
+		if (nut.type(target) == nut.type.character) then
 			if (target:getData("banned")) then
 				target:setData("banned", nil)
 				target:setData("permakilled", nil)

@@ -6,15 +6,15 @@ local COMMAND_PREFIX = "/"
 
 function nut.command.add(name, data)
 	if (!isstring(name)) then
-		return ErrorNoHaltWithStack("nut.command.add expected string for #1 argument but got: " .. nut.type(name))
+		return ErrorNoHaltWithStack("nut.command.add expected string for #1 argument but got: " .. nut.type.getName(nut.type(name)))
 	end
 
 	if (!istable(data)) then
-		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected table for #2 argument but got: " .. nut.type(data))
+		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected table for #2 argument but got: " .. nut.type.getName(nut.type(data)))
 	end
 
 	if (!isfunction(data.onRun)) then
-		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected an onRun function in #2 argument but got: " .. nut.type(data.onRun))
+		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected an onRun function in #2 argument but got: " .. nut.type.getName(nut.type(data.onRun)))
 	end
 
 	-- new argument system
@@ -308,10 +308,12 @@ if (SERVER) then
 							end
 
 							if (argument) then
-								local multipleTypes = nut.type.getMultiple(nutType)
+								local multipleTypes = table.Reverse(nut.type.getMultiple(nutType))
 								local failed
 
-								for _, v in ipairs(multipleTypes) do
+								-- string types are an early bit value in types, but we want to parse/assert them last, so go through the types we have backwards
+								for i = #multipleTypes, 1, -1 do
+									local v = multipleTypes[i]
 									local assertion = nut.type.assert(v, argument)
 
 									if (assertion) then
@@ -326,7 +328,7 @@ if (SERVER) then
 										if (nut.type.getName(v) == "player" or nut.type.getName(v) == "character") then
 											failed = "Could not find the target \'" .. argument .. "\'"
 										else
-											failed = "Wrong type to #" .. i .. " argument, expected \'" .. nut.type.getName(nutType) .. "\' got \'" .. nut.type(argument) .. "\'"
+											failed = "Wrong type to #" .. i .. " argument, expected \'" .. nut.type.getName(nutType) .. "\' got \'" .. nut.type.getName(nut.type(argument)) .. "\'"
 										end
 									end
 								end
