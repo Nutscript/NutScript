@@ -114,7 +114,11 @@ hook.Add("BuildHelpMenu", "nutBasicHelp", function(tabs)
 			end
 
 			if (allowed) then
-				body = body.."<h2>/"..k.."</h2><strong>Syntax:</strong> <em>"..v.syntax.."</em><br /><br />"
+				local syntax = v.syntax
+				syntax = string.gsub(syntax, "<", "&lt")
+				syntax = string.gsub(syntax, ">", "&gt")
+
+				body = body.."<h2>/"..k.."</h2><strong>Syntax:</strong> <em>"..syntax.."</em><br /><br />"
 			end
 		end
 

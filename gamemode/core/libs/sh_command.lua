@@ -18,6 +18,10 @@ function nut.command.add(name, data)
 	end
 
 	-- new argument system
+	if (isnumber(data.arguments)) then
+		data.arguments = {data.arguments}
+	end
+
 	if (istable(data.arguments)) then
 		local missingArguments = {}
 		local syntaxes = {}
@@ -33,10 +37,12 @@ function nut.command.add(name, data)
 				return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") a required argument is after an optional argument, optional arguments must be last")
 			end
 
+			local typeName = nut.type.getName(v)
+
 			if (argumentName) then
-				table.insert(syntaxes, nut.type.isOptional(v) and "[" .. nut.type.getName(v) .. " " .. argumentName .. "]" or "<" .. nut.type.getName(v) .. " " .. argumentName .. ">")
+				table.insert(syntaxes, nut.type.isOptional(v) and "[" .. typeName .. ": " .. argumentName .. "]" or "<" .. typeName .. ": " .. argumentName .. ">")
 			else
-				table.insert(missingArguments, nut.type.getName(v))
+				table.insert(missingArguments, typeName)
 			end
 		end
 
@@ -283,7 +289,7 @@ if (SERVER) then
 
 							local argument = arguments[i]
 
-							if (argument and bit.band(nutType, nut.type.string) == nut.type.string and i == #command.arguments) then
+							if (argument and i == #command.arguments) then
 								argument = text:sub(length)
 								arguments[i] = argument
 		
@@ -302,19 +308,31 @@ if (SERVER) then
 							end
 
 							if (argument) then
-								local assertion = nut.type.assert(nutType, argument)
+								local multipleTypes = nut.type.getMultiple(nutType)
+								local failed
 
-								if (assertion) then
-									if (!isbool(assertion)) then
-										arguments[i] = assertion
-									end
-								else
-									if (nut.type.getName(nutType) == "player" or nut.type.getName(nutType) == "character") then
-										client:notify("Could not find the target \'" .. argument .. "\'")
+								for _, v in ipairs(multipleTypes) do
+									local assertion = nut.type.assert(v, argument)
+
+									if (assertion) then
+										failed = nil
+
+										if (!isbool(assertion)) then
+											arguments[i] = assertion
+										end
+
+										break
 									else
-										client:notify("Wrong type to #" .. i .. " argument, expected \'" .. nut.type.getName(nutType) .. "\' got \'" .. nut.type(argument) .. "\'")
+										if (nut.type.getName(v) == "player" or nut.type.getName(v) == "character") then
+											failed = "Could not find the target \'" .. argument .. "\'"
+										else
+											failed = "Wrong type to #" .. i .. " argument, expected \'" .. nut.type.getName(nutType) .. "\' got \'" .. nut.type(argument) .. "\'"
+										end
 									end
-		
+								end
+
+								if (failed) then
+									client:notify(failed)
 									return true
 								end
 							end

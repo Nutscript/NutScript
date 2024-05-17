@@ -58,12 +58,18 @@ local PANEL = {}
 							if (k == command and v.syntax) then
 								local i2 = 0
 
-								for argument in v.syntax:gmatch("([%[<][%w_]+[%s][%w_]+[%]>])") do
+								for argument in v.syntax:gmatch("([%[<][%g_]+[%s][%g_]+[%]>])") do
 									i2 = i2 + 1
 									local color = COLOR_FADED
 
 									if (i2 == (#arguments - 1)) then
 										color = COLOR_ACTIVE
+									end
+
+									if (v.arguments and i2 == #v.arguments) then
+										if ((#arguments - 1) >= i2) then
+											color = COLOR_ACTIVE
+										end
 									end
 
 									x = x + nut.util.drawText(argument.."  ", x, i * 20, color)

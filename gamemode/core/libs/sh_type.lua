@@ -39,15 +39,20 @@ function nut.type.add(name, assertion)
 		error("nut.type.add expected function for #2 input but got: " .. type(assertion))
 	end
 
-	local pow2 = 2 ^ (#nut.type.types + 1)
+	local bitPosition = 1
+	while (bitPosition <= nut.type.bitsum) do
+		bitPosition = bit.lshift(bitPosition, 1)
+	end
 
-	nut.type.bitsum = bit.bor(nut.type.bitsum, pow2)
+	nut.type.bitsum = bit.bor(nut.type.bitsum, bitPosition)
 
-	nut.type[pow2] = name
-	nut.type[name] = pow2
+	nut.type[bitPosition] = name
+	nut.type[name] = bitPosition
 
-	nut.type.map[pow2] = table.insert(nut.type.types, {assertion = assertion, name = name})
-	nut.type.map[name] = nut.type.map[pow2]
+	nut.type.map[bitPosition] = #nut.type.types + 1
+	nut.type.map[name] = nut.type.map[bitPosition]
+
+	table.insert(nut.type.types, {assertion = assertion, name = name})
 end
 
 function nut.type.assert(nutType, value)
@@ -60,6 +65,18 @@ function nut.type.assert(nutType, value)
 			return true
 		end
 	end
+end
+
+function nut.type.getMultiple(nutType)
+	local operands = {}
+
+	for i = 0, 31 do
+		if bit.band(nutType, bit.lshift(1, i)) > 0 then
+			operands[#operands + 1] = bit.lshift(1, i)
+		end
+	end
+
+	return operands
 end
 
 function nut.type.getName(nutType)
@@ -75,6 +92,19 @@ function nut.type.getName(nutType)
 
 		if (xor) then
 			return nut.type.getName(xor)
+		end
+	-- could be multiple types, lets see if it is
+	else
+		local types = nut.type.getMultiple(nutType)
+
+		if (#types > 0) then
+			local typeNames = {}
+
+			for i, v in ipairs(types) do
+				table.insert(typeNames, nut.type.getName(v))
+			end
+
+			return table.concat(typeNames, "|")
 		end
 	end
 end
@@ -100,12 +130,122 @@ nut.type.add("player", function(value)
 	end
 end)
 nut.type.add("character", function(value)
+	if (istable(value)) then
+		return GetMetaTable(value) == nut.meta.character and true
+	end
+
 	if (isentity(value)) then
-		return value.getChar and value:GetChar()
+		return value.getChar and value:getChar()
 	end
 
 	if (isstring(value)) then
 		local client = nut.util.findPlayer(value)
-		return client and client:getChar()
+
+		if (client) then
+			return client:getChar()
+		end
+
+		for _, v in pairs(nut.char.loaded) do
+			if (nut.util.stringMatches(v:getName(), value)) then
+				return v
+			end
+		end
+	end
+end)
+nut.type.add("item", function(value)
+	if (istable(value)) then
+		return value.isItem and value
+	end
+
+	if (isentity(value)) then
+		if (value.getItemTable) then
+			return nut.item.instances[value:getItemID()]
+		end
+	end
+
+	if (isstring(value)) then
+		if (nut.item.list[value]) then
+			return nut.item.list[value]
+		end
+	end
+
+	if (isnumber(tonumber(value))) then
+		if (nut.item.instances[tonumber(value)]) then
+			return nut.faction.instances[tonumber(value)]
+		end
+	end
+end)
+nut.type.add("faction", function(value)
+	if (istable(value)) then
+		if (value.uniqueID and nut.faction.teams[value.uniqueID]) then
+			return nut.faction.teams[value.uniqueID]
+		end
+
+		if (value.getFaction) then
+			return nut.faction.indices[value:getFaction()]
+		end
+	end
+
+	if (isentity(value)) then
+		if (value.Team) then
+			return nut.faction.indices[value:Team()]
+		end
+	end
+
+	if (isstring(value)) then
+		if (nut.faction.teams[value]) then
+			return nut.faction.teams[value]
+		end
+
+		for _, v in pairs(nut.faction.indices) do
+			if (nut.util.stringMatches(v.name, value)) then
+				return v
+			end
+		end
+
+		local client = nut.util.findPlayer(value)
+
+		if (client) then
+			return nut.faction.indices[client:Team()]
+		end
+	end
+
+	if (isnumber(tonumber(value))) then
+		if (nut.faction.indices[tonumber(value)]) then
+			return nut.faction.indices[tonumber(value)]
+		end
+	end
+end)
+nut.type.add("class", function(value)
+	if (istable(value)) then
+		if (value.getClass) then
+			return nut.class.list[value:getClass()]
+		end
+	end
+
+	if (isentity(value)) then
+		if (value.getChar) then
+			return nut.class.list[value:getChar():getClass()]
+		end
+	end
+
+	if (isstring(value)) then
+		for _, v in pairs(nut.class.list) do
+			if (nut.util.stringMatches(L(v.name, client), value)) then
+				return v
+			end
+		end
+
+		local client = nut.util.findPlayer(value)
+
+		if (client) then
+			return nut.class.list[client:getChar():getClass()]
+		end
+	end
+
+	if (isnumber(tonumber(value))) then
+		if (nut.class.list[tonumber(value)]) then
+			return nut.class.list[tonumber(value)]
+		end
 	end
 end)
