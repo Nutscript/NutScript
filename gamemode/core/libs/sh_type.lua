@@ -171,7 +171,9 @@ nut.type.addResolve("player", function(value)
 	end
 
 	if (isstring(value)) then
-		return nut.util.findPlayer(value)
+		if (nut.util.findPlayer(value)) then
+			return nut.util.findPlayer(value)
+		end
 	end
 
 	return false, "Could not find the player \'" .. value .. "\'"
@@ -181,9 +183,11 @@ nut.type.addResolve("character", function(value)
 		return value
 	end
 
+	local client = nut.type.resolve(nut.type.player, value)
+
 	-- if the value can resolve to a player then we probably want the player's character
-	if (nut.type.resolve(nut.type.player, value)) then
-		return nut.type.resolve(nut.type.player, value):getChar()
+	if (client and client:getChar()) then
+		return client:getChar()
 	end
 
 	if (isstring(value)) then
