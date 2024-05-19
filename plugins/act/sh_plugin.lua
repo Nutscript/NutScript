@@ -18,10 +18,12 @@ for k, v in pairs(PLUGIN.acts) do
 		end
 
 		if (multiple) then
-			data.syntax = "[number type]"
+			data.arguments = nut.type.tor(nut.type.number, nut.type.optional)
+		else
+			data.arguments = nut.type.optional
 		end
 
-		data.onRun = function(client, arguments)
+		data.onRun = function(client, actType)
 			if (client.nutSeqUntimed) then
 				client:setNetVar("actAng")
 				client:leaveSequence()
@@ -51,7 +53,7 @@ for k, v in pairs(PLUGIN.acts) do
 					local sequence
 
 					if (istable(info.sequence)) then
-						local index = math.Clamp(math.floor(tonumber(arguments[1]) or 1), 1, #info.sequence)
+						local index = math.Clamp(math.floor(actType or 1), 1, #info.sequence)
 
 						sequence = info.sequence[index]
 					else

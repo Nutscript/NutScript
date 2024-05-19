@@ -65,7 +65,9 @@ function nut.command.add(name, data)
 			local typeName = buildTypeName(types, bIsOr)
 
 			if (argumentName) then
-				table.insert(syntaxes, bIsOptional and "[" .. typeName .. ": " .. argumentName .. "]" or "<" .. typeName .. ": " .. argumentName .. ">")
+				if (v != nut.type.optional) then
+					table.insert(syntaxes, bIsOptional and "[" .. typeName .. ": " .. argumentName .. "]" or "<" .. typeName .. ": " .. argumentName .. ">")
+				end
 			else
 				table.insert(missingArguments, typeName)
 			end
@@ -76,7 +78,7 @@ function nut.command.add(name, data)
 		end
 
 		-- build syntax if we don't have a custom syntax
-		if (!data.syntax) then
+		if (!data.syntax and #syntaxes > 0) then
 			data.syntax = table.concat(syntaxes, " ")
 		end
 	end
@@ -87,7 +89,7 @@ function nut.command.add(name, data)
 		-- Check if the command is for basic admins only.
 		if (data.adminOnly) then
 			data.onCheckAccess = function(client)
-				return client:IsAdmin()
+				return !IsValid(client) and true or client:IsAdmin()
 			end
 		-- Or if it is only for super administrators.
 		elseif (data.superAdminOnly) then
@@ -300,77 +302,81 @@ if (SERVER) then
 			local command = nut.command.list[match]
 			-- We have a valid, registered command.
 			if (command) then
-				-- Get the arguments like a console command.
-				if (!arguments) then
-					-- new argument system
-					if (command.arguments) then
-						local length = #match + 3
-						arguments = nut.command.extractArgs(text:sub(length))
+				arguments = arguments or nut.command.extractArgs(text:sub(#match + 3))
 
-						for k, v in ipairs(command.arguments) do
-							local argument = arguments[k]
+				if (command.arguments) then
+					for k, v in ipairs(command.arguments) do
+						local types = nut.type.getMultiple(v)
+						local bIsOptional = table.HasValue(types, nut.type.optional)
 
-							if (argument and k == #command.arguments) then
-								argument = text:sub(length)
-								arguments[k] = argument
-		
-								for _ = k + 1, #arguments do
-									table.remove(arguments, k + 1)
-								end
+						if (arguments[k] and k == #command.arguments and table.HasValue(types, nut.type.string)) then	
+							for _ = k + 1, #arguments do
+								arguments[k] = arguments[k] .. " " .. arguments[k + 1]
+								table.remove(arguments, k + 1)
 							end
+						end
 
-							length = length + string.len(argument or "") + 1
+						local argument = arguments[k]
 
-							local types = nut.type.getMultiple(v)
-							local bIsOr = nut.type.ors[v]
-							local bIsOptional = bIsOr and table.HasValue(types, nut.type.optional)
-
-							-- we don't want 'optional' text showing up in the argument syntax
-							for k, nutType in pairs(types) do
-								if (nutType == nut.type.optional) then
-									types[k] = nil
-								end
+						-- we don't want 'optional' text showing up in the argument syntax
+						for k, nutType in pairs(types) do
+							if (nutType == nut.type.optional) then
+								types[k] = nil
 							end
+						end
 
-							local typeName = buildTypeName(types, bIsOr)
+						local typeName = buildTypeName(types, nut.type.ors[v])
 
-							if (!bIsOptional) then
-								if (argument == nil or argument == "") then
+						if (!bIsOptional) then
+							if (argument == nil or argument == "") then
+								if (IsValid(client)) then
 									client:notify("Missing argument #" .. k .. " expected \'" .. typeName .. "\'")
-									return true
+								else
+									print("Missing argument #" .. k .. " expected \'" .. typeName .. "\'")
 								end
+
+								return true
 							end
+						end
 
-							if (argument) then
-								local resolve, failString = nut.type.resolve(v, argument)
-								local success
+						if (arguments[k]) then
+							if (IsValid(client)) then
+								if (table.HasValue(types, nut.type.player) or table.HasValue(types, nut.type.character)) then
+									if (argument == "^") then
+										argument = client
+									elseif (argument == "@") then
+										local trace = client:GetEyeTrace().Entity
 
-								if (isfunction(v)) then
-									success = v(resolve or argument)
-								else
-									success = nut.type.assert(v, resolve) or nut.type.assert(v, argument)
-								end
-
-								if (success) then
-									arguments[k] = resolve or arguments[k]
-								else
-									if (failString) then
-										client:notify(failString)
-									else
-										client:notify("Wrong type to #" .. k .. " argument, expected \'" .. typeName .. "\' got \'" .. nut.type(resolve or argument) .. "\'")
+										if (IsValid(trace) and trace:IsPlayer()) then
+											argument = trace
+										else
+											client:notifyLocalized("lookToUseAt")
+											return true
+										end
 									end
-
-									return true
 								end
 							end
-						end
 
-						if (#arguments > #command.arguments) then
-							client:notify("Too many arguments provided, expected \'" .. #command.arguments .. "\' got \'" .. #arguments .. "\'")
-							return true
+							local resolve = nut.type.resolve(v, argument)
+
+							if (resolve == nil) then
+								resolve = argument
+							end
+
+							local success = isfunction(v) and v(resolve) or nut.type.assert(v, resolve)
+
+							if (success or v == nut.type.optional) then
+								arguments[k] = resolve
+							else
+								if (IsValid(client)) then
+									client:notify("Invalid \'" .. typeName .. "\' to argument #" .. k)
+								else
+									print("Invalid \'" .. typeName .. "\' to argument #" .. k)
+								end
+
+								return true
+							end
 						end
-					else
-						arguments = nut.command.extractArgs(text:sub(#match + 3))
 					end
 				end
 

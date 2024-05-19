@@ -94,11 +94,10 @@ nut.command.add("doorbuy", {
 
 nut.command.add("doorsetunownable", {
 	adminOnly = true,
-	syntax = "[string name]",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.string, nut.type.optional),
+	onRun = function(client, name)
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
-		local name = table.concat(arguments, " ")
 
 		-- Validate it is a door.
 		if (IsValid(entity) and entity:isDoor() and !entity:getNetVar("disabled")) then
@@ -106,14 +105,14 @@ nut.command.add("doorsetunownable", {
 			entity:setNetVar("noSell", true)
 
 			-- Change the name of the door if needed.
-			if (arguments[1] and name:find("%S")) then
+			if (name and name:find("%S")) then
 				entity:setNetVar("name", name)
 			end
 
 			PLUGIN:callOnDoorChildren(entity, function(child)
 				child:setNetVar("noSell", true)
 
-				if (arguments[1] and name:find("%S")) then
+				if (name and name:find("%S")) then
 					child:setNetVar("name", name)
 				end
 			end)
@@ -132,11 +131,10 @@ nut.command.add("doorsetunownable", {
 
 nut.command.add("doorsetownable", {
 	adminOnly = true,
-	syntax = "[string name]",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.string, nut.type.optional),
+	onRun = function(client, name)
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
-		local name = table.concat(arguments, " ")
 
 		-- Validate it is a door.
 		if (IsValid(entity) and entity:isDoor() and !entity:getNetVar("disabled")) then
@@ -144,14 +142,14 @@ nut.command.add("doorsetownable", {
 			entity:setNetVar("noSell", nil)
 
 			-- Update the name.
-			if (arguments[1] and name:find("%S")) then
+			if (name and name:find("%S")) then
 				entity:setNetVar("name", name)
 			end
 
 			PLUGIN:callOnDoorChildren(entity, function(child)
 				child:setNetVar("noSell", nil)
 
-				if (arguments[1] and name:find("%S")) then
+				if (name and name:find("%S")) then
 					child:setNetVar("name", name)
 				end
 			end)
@@ -170,32 +168,15 @@ nut.command.add("doorsetownable", {
 
 nut.command.add("doorsetfaction", {
 	adminOnly = true,
-	syntax = "[string faction]",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.faction, nut.type.optional),
+	onRun = function(client, name)
+		local faction = name
+
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
 
 		-- Validate it is a door.
 		if (IsValid(entity) and entity:isDoor() and !entity:getNetVar("disabled")) then
-			local faction
-
-			-- Check if the player supplied a faction name.
-			if (arguments[1]) then
-				-- Get all of the arguments as one string.
-				local name = table.concat(arguments, " ")
-
-				-- Loop through each faction, checking the uniqueID and name.
-				for k, v in pairs(nut.faction.teams) do
-					if (nut.util.stringMatches(k, name) or nut.util.stringMatches(L(v.name, client), name)) then
-						-- This faction matches the provided string.
-						faction = v
-
-						-- Escape the loop.
-						break
-					end
-				end
-			end
-
 			-- Check if a faction was found.
 			if (faction) then
 				entity.nutFactionID = faction.uniqueID
@@ -207,14 +188,12 @@ nut.command.add("doorsetfaction", {
 				end)
 
 				client:notifyLocalized("dSetFaction", L(faction.name, client))
-			-- The faction was not found.
-			elseif (arguments[1]) then
-				client:notifyLocalized("invalidFaction")
-			-- The player didn't provide a faction.
 			else
+				entity.nutFactionID = nil
 				entity:setNetVar("faction", nil)
 
 				PLUGIN:callOnDoorChildren(entity, function()
+					entity.nutFactionID = nil
 					entity:setNetVar("faction", nil)
 				end)
 
@@ -229,15 +208,13 @@ nut.command.add("doorsetfaction", {
 
 nut.command.add("doorsetdisabled", {
 	adminOnly = true,
-	syntax = "<bool disabled>",
-	onRun = function(client, arguments)
+	arguments = nut.type.bool,
+	onRun = function(client, disabled)
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
 
 		-- Validate it is a door.
 		if (IsValid(entity) and entity:isDoor()) then
-			local disabled = util.tobool(arguments[1] or true)
-
 			-- Set it so it is ownable.
 			entity:setNetVar("disabled", disabled)
 
@@ -258,8 +235,8 @@ nut.command.add("doorsetdisabled", {
 })
 
 nut.command.add("doorsettitle", {
-	syntax = "<string title>",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.string, nut.type.optional),
+	onRun = function(client, title)
 		-- Get the door infront of the player.
 		local data = {}
 			data.start = client:GetShootPos()
@@ -270,14 +247,6 @@ nut.command.add("doorsettitle", {
 
 		-- Validate the door.
 		if (IsValid(entity) and entity:isDoor() and !entity:getNetVar("disabled")) then
-			-- Get the supplied name.
-			local name = table.concat(arguments, " ")
-
-			-- Make sure the name contains actual characters.
-			if (!name:find("%S")) then
-				return client:notifyLocalized("invalidArg", 1)
-			end
-
 			--[[
 				NOTE: Here, we are setting two different networked names.
 				The title is a temporary name, while the other name is the
@@ -288,17 +257,19 @@ nut.command.add("doorsettitle", {
 
 			-- Check if they are allowed to change the door's name.
 			if (entity:checkDoorAccess(client, DOOR_TENANT)) then
-				entity:setNetVar("title", name)
+				entity:setNetVar("title", title)
 			elseif (client:IsAdmin()) then
-				entity:setNetVar("name", name)
+				entity:setNetVar("name", title)
 
 				PLUGIN:callOnDoorChildren(entity, function(child)
-					child:setNetVar("name", name)
+					child:setNetVar("name", title)
 				end)
 			else
 				-- Otherwise notify the player he/she can't.
 				client:notifyLocalized("notOwner")
 			end
+
+			PLUGIN:SaveDoorData()
 		else
 			-- Notification of the door not being valid.
 			client:notifyLocalized("dNotValid")
@@ -308,7 +279,7 @@ nut.command.add("doorsettitle", {
 
 nut.command.add("doorsetparent", {
 	adminOnly = true,
-	onRun = function(client, arguments)
+	onRun = function(client)
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
 
@@ -325,7 +296,7 @@ nut.command.add("doorsetparent", {
 
 nut.command.add("doorsetchild", {
 	adminOnly = true,
-	onRun = function(client, arguments)
+	onRun = function(client)
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
 
@@ -362,7 +333,7 @@ nut.command.add("doorsetchild", {
 
 nut.command.add("doorremovechild", {
 	adminOnly = true,
-	onRun = function(client, arguments)
+	onRun = function(client)
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
 
@@ -399,15 +370,13 @@ nut.command.add("doorremovechild", {
 
 nut.command.add("doorsethidden", {
 	adminOnly = true,
-	syntax = "<bool hidden>",
-	onRun = function(client, arguments)
+	arguments = nut.type.bool,
+	onRun = function(client, hidden)
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
 
 		-- Validate it is a door.
 		if (IsValid(entity) and entity:isDoor()) then
-			local hidden = tobool(arguments[1] or true)
-
 			entity:setNetVar("hidden", hidden)
 
 			PLUGIN:callOnDoorChildren(entity, function(child)
@@ -428,28 +397,20 @@ nut.command.add("doorsethidden", {
 
 nut.command.add("doorsetclass", {
 	adminOnly = true,
-	syntax = "[string faction]",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.class, nut.type.optional),
+	onRun = function(client, name)
+		local classData, class
+
+		if (name) then
+			classData, class = name, name.index
+		end
+
 		-- Get the door the player is looking at.
 		local entity = client:GetEyeTrace().Entity
 
 		-- Validate it is a door.
 		if (IsValid(entity) and entity:isDoor() and !entity:getNetVar("disabled")) then
-			local class, classData
-
-			if (arguments[1]) then
-				local name = table.concat(arguments, " ")
-
-				for k, v in pairs(nut.class.list) do
-					if (nut.util.stringMatches(v.name, name) or nut.util.stringMatches(L(v.name, client), name)) then
-						class, classData = k, v
-
-						break
-					end
-				end
-			end
-
-			-- Check if a faction was found.
+			-- Check if a class was found.
 			if (class) then
 				entity.nutClassID = class
 				entity:setNetVar("class", class)
@@ -460,8 +421,6 @@ nut.command.add("doorsetclass", {
 				end)
 
 				client:notifyLocalized("dSetClass", L(classData.name, client))
-			elseif (arguments[1]) then
-				client:notifyLocalized("invalidClass")
 			else
 				entity:setNetVar("class", nil)
 

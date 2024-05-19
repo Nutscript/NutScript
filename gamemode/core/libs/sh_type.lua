@@ -34,20 +34,22 @@ function nut.type.add(name, assertion)
 		error("nut.type.add(\"" .. name .. "\") expected function for #2 input but got: " .. type(assertion))
 	end
 
-	nut.type.list[name] = {assertion = assertion}
+	nut.type.list[name] = nut.type.list[name] or {}
+	nut.type.list[name].assertion = assertion
 	nut.type[name] = name
 end
 
-function nut.type.addResolve(name, resolve)
-	if (!isstring(name)) then
-		error("nut.type.addResolve expected string for #1 input but got: " .. type(name))
+function nut.type.addResolve(nutType, identifier, resolve)
+	if (!isstring(nutType)) then
+		error("nut.type.addResolve expected string for #1 input but got: " .. type(nutType))
 	end
 
 	if (!isfunction(resolve)) then
-		error("nut.type.addResolve(\"" .. name .. "\") expected function for #2 input but got: " .. type(assertion))
+		error("nut.type.addResolve(\"" .. nutType .. "\") expected function for #2 input but got: " .. type(assertion))
 	end
 
-	nut.type.list[name].resolve = resolve
+	nut.type.list[nutType].resolves = nut.type.list[nutType].resolves or {}
+	nut.type.list[nutType].resolves[identifier] = resolve
 end
 
 function nut.type.assert(nutType, value)
@@ -60,28 +62,42 @@ function nut.type.assert(nutType, value)
 end
 
 function nut.type.resolve(nutType, value)
-	local resolve, failString
+	local resolve
 
 	-- if it's a function then it's an or/and func, we'll have to resolve each type see what succeeds
 	if (isfunction(nutType)) then
 		local types = nut.type.ors[nutType] or nut.type.ands[nutType]
 
 		for _, v in ipairs(types) do
-			if (nut.type.list[v].resolve) then
-				resolve, failString = nut.type.list[v].resolve(value)
+			-- if the value is the correct type we don't need to resolve, return the value
+			if (nut.type.assert(v, value)) then return value end
 
-				if (resolve) then
-					return resolve, failString
+			if (nut.type.list[v].resolves) then
+				for _, resolveFunc in pairs(nut.type.list[v].resolves) do
+					resolve = resolveFunc(value)
+
+					if (resolve) then
+						return resolve
+					end
 				end
 			end
 		end
 	end
 
-	if (nut.type.list[nutType] and nut.type.list[nutType].resolve) then
-		resolve, failString = nut.type.list[nutType].resolve(value)
+	if (nut.type.list[nutType]) then
+		-- if the value is the correct type we don't need to resolve, return the value
+		if (nut.type.assert(nutType, value)) then return value end
+
+		for _, resolveFunc in pairs(nut.type.list[nutType].resolves or {}) do
+			resolve = resolveFunc(value)
+
+			if (resolve) then
+				return resolve
+			end
+		end
 	end
 
-	return resolve, failString
+	return resolve
 end
 
 function nut.type.tor(...)
@@ -156,38 +172,35 @@ nut.type.add("string", function(value) return (isstring(value)) end)
 nut.type.add("number", function(value) return (isnumber(value)) end)
 nut.type.add("bool", function(value) return (isbool(value)) end)
 nut.type.add("steamid64", function(value) return (isstring(value) and string.format("%017.17s", value) == value) end)
+nut.type.add("steamid", function(value) return (isstring(value) and string.match(value, "STEAM_%d+:%d+:%d+") == value) end)
 nut.type.add("player", function(value) return (isentity(value) and value:IsPlayer()) end)
 nut.type.add("character", function(value) return (istable(value) and getmetatable(value) == nut.meta.character) end)
-nut.type.add("item", function(value) return (istable(value) and value.isItem != nil) or (isentity(value) and value.getItemTable != nil) end)
+nut.type.add("item", function(value) return (istable(value) and value.isItem != nil) end)
 nut.type.add("faction", function(value) return (istable(value) and value.uniqueID and nut.faction.teams[value.uniqueID] != nil) end)
 nut.type.add("class", function(value) return (istable(value) and value.index and nut.class.list[value.index] != nil) end)
 
 -- do type resolves
-nut.type.addResolve("number", function(value) return (tonumber(value)) end)
-nut.type.addResolve("bool", function(value) return (tobool(value)) end)
-nut.type.addResolve("player", function(value)
-	if (nut.type.assert(nut.type.player, value)) then
-		return value
-	end
-
+nut.type.addResolve(nut.type.number, "tonumber", function(value) return (tonumber(value)) end)
+nut.type.addResolve(nut.type.bool, "tobool", function(value) return (tobool(value)) end)
+nut.type.addResolve(nut.type.player, "findPlayer", function(value)
 	if (isstring(value)) then
-		if (nut.util.findPlayer(value)) then
-			return nut.util.findPlayer(value)
+		if (nut.type.assert(nut.type.steamid, value) and player.GetBySteamID(value)) then
+			return player.GetBySteamID(value)
+		end
+
+		for _, v in ipairs(player.GetAll()) do
+			if (nut.util.stringMatches(v:Name(), value)) then
+				return v
+			end
 		end
 	end
-
-	return false, "Could not find the player \'" .. value .. "\'"
 end)
-nut.type.addResolve("character", function(value)
-	if (nut.type.assert(nut.type.character, value)) then
-		return value
-	end
-
-	local client = nut.type.resolve(nut.type.player, value)
+nut.type.addResolve(nut.type.character, "findCharacter", function(value)
+	local ply = nut.type.resolve(nut.type.player, value)
 
 	-- if the value can resolve to a player then we probably want the player's character
-	if (client and client:getChar()) then
-		return client:getChar()
+	if (ply and ply:getChar()) then
+		return ply:getChar() 
 	end
 
 	if (isstring(value)) then
@@ -197,14 +210,8 @@ nut.type.addResolve("character", function(value)
 			end
 		end
 	end
-
-	return false, "Could not find the character \'" .. value .. "\'"
 end)
-nut.type.addResolve("item", function(value)
-	if (nut.type.assert(nut.type.item, value)) then
-		return (value.getItemTable and value:getItemTable()) or value
-	end
-
+nut.type.addResolve(nut.type.item, "findItem", function(value)
 	if (isstring(value)) then
 		if (nut.item.list[value]) then
 			return nut.item.list[value]
@@ -216,14 +223,8 @@ nut.type.addResolve("item", function(value)
 			return nut.item.instances[tonumber(value)]
 		end
 	end
-
-	return false, "Could not find the item \'" .. value .. "\'"
 end)
-nut.type.addResolve("faction", function(value)
-	if (nut.type.assert(nut.type.faction, value)) then
-		return value
-	end
-
+nut.type.addResolve(nut.type.faction, "findFaction", function(value)
 	if (isnumber(tonumber(value))) then
 		if (nut.faction.indices[tonumber(value)]) then
 			return nut.faction.indices[tonumber(value)]
@@ -236,19 +237,13 @@ nut.type.addResolve("faction", function(value)
 		end
 
 		for _, v in pairs(nut.faction.indices) do
-			if (nut.util.stringMatches(v.uniqueID, value) or nut.util.stringMatches(v.name, value)) then
+			if (nut.util.stringMatches(client and L(v.uniqueID, client) or v.uniqueID, value) or nut.util.stringMatches(client and L(v.name, client) or v.name, value)) then
 				return v
 			end
 		end
 	end
-
-	return false, "Could not find the faction \'" .. value .. "\'"
 end)
-nut.type.addResolve("class", function(value)
-	if (nut.type.assert(nut.type.class, value)) then
-		return value
-	end
-
+nut.type.addResolve(nut.type.class, "findClass", function(value)
 	if (isnumber(tonumber(value))) then
 		if (nut.class.list[tonumber(value)]) then
 			return nut.class.list[tonumber(value)]
@@ -257,11 +252,9 @@ nut.type.addResolve("class", function(value)
 
 	if (isstring(value)) then
 		for _, v in pairs(nut.class.list) do
-			if (nut.util.stringMatches(v.uniqueID, value) or nut.util.stringMatches(v.name, value)) then
+			if (nut.util.stringMatches(client and L(v.uniqueID, client) or v.uniqueID, value) or nut.util.stringMatches(client and L(v.name, client) or v.name, value)) then
 				return v
 			end
 		end
 	end
-
-	return false, "Could not find the class \'" .. value .. "\'"
 end)

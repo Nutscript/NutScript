@@ -220,7 +220,7 @@ nut.command.add("charban", {
 	adminOnly = true,
 	arguments = nut.type.character,
 	onRun = function(client, target)
-		nut.util.notifyLocalized("charBan", client:Name(), target:getName())
+		nut.util.notifyLocalized("charBan", IsValid(client) and client:Name() or "System", target:getName())
 		target:ban()
 	end
 })
@@ -237,10 +237,14 @@ nut.command.add("charunban", {
 			if (target:getData("banned")) then
 				target:setData("banned", nil)
 				target:setData("permakilled", nil)
-				nut.util.notifyLocalized("charUnBan", nil, client:Name(), target:getName())
+				nut.util.notifyLocalized("charUnBan", nil, IsValid(client) and client:Name() or "System", target:getName())
 				return
 			else
-				client:notifyLocalized("charNotBanned")
+				if (IsValid(client)) then
+					client:notifyLocalized("charNotBanned")
+				else
+					print("This character is not banned.")
+				end
 				return
 			end
 		end
@@ -261,10 +265,7 @@ nut.command.add("charunban", {
 				data.banned = nil
 
 				nut.db.updateTable({_data = data}, nil, "characters", "_id = " .. charID)
-				nut.util.notifyLocalized("charUnBan", nil, client:Name(), nut.char.loaded[charID]:getName())
-			else
-				client:notify("Could not find the character \'" .. target .. "\'")
-				return
+				nut.util.notifyLocalized("charUnBan", nil, IsValid(client) and client:Name() or "System", nut.char.loaded[charID]:getName())
 			end
 		end)
 	end

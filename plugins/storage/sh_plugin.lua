@@ -30,15 +30,13 @@ end
 
 nut.command.add("storagelock", {
 	adminOnly = true,
-	syntax = "[string password]",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.string, nut.type.optional),
+	onRun = function(client, password)
 		local trace = client:GetEyeTraceNoCursor()
 		local ent = trace.Entity
 
 		if (ent and ent:IsValid()) then
-			local password = table.concat(arguments, " ")
-
-			if (password ~= "") then
+			if (password and password ~= "") then
 				ent:setNetVar("locked", true)
 				ent.password = password
 				client:notifyLocalized("storPass", password)

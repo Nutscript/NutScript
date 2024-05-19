@@ -97,27 +97,16 @@ end
 
 -- Returns true if a string is a 32-bit SteamID.
 function nut.util.isSteamID(value)
-	if (string.match(value, "STEAM_(%d+):(%d+):(%d+)")) then
-		return true
-	end
-	return false
+	return nut.type.assert(nut.type.steamid, value)
 end
 
 -- Finds a player by matching their name or steam id.
 function nut.util.findPlayer(identifier, allowPatterns)
-	if (nut.util.isSteamID(identifier)) then
-		return player.GetBySteamID(identifier)
-	end
-
 	if (!allowPatterns) then
 		identifier = string.PatternSafe(identifier)
 	end
 
-	for _, v in ipairs(player.GetAll()) do
-		if (nut.util.stringMatches(v:Name(), identifier)) then
-			return v
-		end
-	end
+	return nut.type.resolve(nut.type.player, identifier)
 end
 
 function nut.util.gridVector(vec, gridSize)

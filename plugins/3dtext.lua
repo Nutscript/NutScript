@@ -157,8 +157,11 @@ end
 
 nut.command.add("textadd", {
 	adminOnly = true,
-	syntax = "<string text> [number scale]",
-	onRun = function(client, arguments)
+	arguments = {
+		nut.type.string,
+		nut.type.tor(nut.type.number, nut.type.optional)
+	},
+	onRun = function(client, text, scale)
 		-- Get the position and angles of the text.
 		local trace = client:GetEyeTrace()
 		local position = trace.HitPos
@@ -167,7 +170,7 @@ nut.command.add("textadd", {
 		angles:RotateAroundAxis(angles:Forward(), 90)
 
 		-- Add the text.
-		PLUGIN:addText(position + angles:Up()*0.1, angles, arguments[1], tonumber(arguments[2]))
+		PLUGIN:addText(position + angles:Up()*0.1, angles, text, scale)
 
 		-- Tell the player the text was added.
 		return L("textAdded", client)
@@ -176,13 +179,13 @@ nut.command.add("textadd", {
 
 nut.command.add("textremove", {
 	adminOnly = true,
-	syntax = "[number radius]",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.number, nut.type.optional),
+	onRun = function(client, radius)
 		-- Get the origin to remove text.
 		local trace = client:GetEyeTrace()
 		local position = trace.HitPos + trace.HitNormal*2
 		-- Remove the text(s) and get the amount removed.
-		local amount = PLUGIN:removeText(position, tonumber(arguments[1]))
+		local amount = PLUGIN:removeText(position, radius)
 
 		-- Tell the player how many texts got removed.
 		return L("textRemoved", client, amount)

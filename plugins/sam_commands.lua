@@ -8,12 +8,12 @@ local color_red = Color(255, 0, 0)
 local color_green = Color(0, 255, 0)
 
 nut.command.add("asay", {
-    syntax = "<string message>",
+    arguments = nut.type.string,
     onCheckAccess = function(client)
         return client:IsAdmin() or sam.config.get_updated("Reports", true).value
     end,
-    onRun = function(client, arguments)
-        local text = table.concat(arguments, " ")
+    onRun = function(client, message)
+        local text = message
 
         if (text:find("%S")) then
             if client:IsAdmin() then

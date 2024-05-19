@@ -1,7 +1,7 @@
 nut.chat = nut.chat or {}
 nut.chat.classes = nut.char.classes or {}
 
-local DUMMY_COMMAND = {syntax = "<string text>", onRun = function() end}
+local DUMMY_COMMAND = {arguments = "string", onRun = function(_, text) end}
 
 if (not nut.command) then
 	include("sh_command.lua")
@@ -393,7 +393,7 @@ end
 
 -- Private messages between players.
 nut.chat.register("pm", {
-	format = "[PM] %s: %s.",
+	format = "[PM] %s: %s",
 	color = Color(249, 211, 89),
 	filter = "pm",
 	deadCanChat = true
