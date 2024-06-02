@@ -64,8 +64,9 @@ if (CLIENT) then
 	concommand.Add("fixchatplz", function()
 		if (IsValid(PLUGIN.panel)) then
 			PLUGIN.panel:Remove()
-			PLUGIN:createChat()
 		end
+
+		PLUGIN:createChat()
 	end)
 else
 	netstream.Hook("msg", function(client, text)

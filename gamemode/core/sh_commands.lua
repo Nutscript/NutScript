@@ -325,7 +325,7 @@ nut.command.add("charsetmoney", {
 nut.command.add("dropmoney", {
 	arguments = nut.type.number,
 	onRun = function(client, money)
-		local amount = math.floor(number)
+		local amount = math.floor(money)
 
 		if (amount < 1) then
 			return client:notify("Amount must be greater than zero.")
