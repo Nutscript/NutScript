@@ -387,18 +387,11 @@ end
 
 nut.command.add("areaadd", {
 	adminOnly = true,
-	syntax = "<string name>",
-	onRun = function(client, arguments)
-		local name = table.concat(arguments, " ") or "Area"
-
+	arguments = nut.type.string,
+	onRun = function(client, name)
 		local pos = client:GetEyeTraceNoCursor().HitPos
 
 		if (!client:getNetVar("areaMin")) then
-			if (!name) then
-				nut.util.Notify(nut.lang.Get("missing_arg", 1), client)
-
-				return
-			end
 			netstream.Start(client, "displayPosition", pos)
 
 			client:setNetVar("areaMin", pos, client)
@@ -428,7 +421,7 @@ nut.command.add("areaadd", {
 
 nut.command.add("arearemove", {
 	adminOnly = true,
-	onRun = function(client, arguments)
+	onRun = function(client)
 		local areaID = client:getArea()
 
 		if (!areaID) then
@@ -452,9 +445,8 @@ nut.command.add("arearemove", {
 
 nut.command.add("areachange", {
 	adminOnly = true,
-	syntax = "<string name>",
-	onRun = function(client, arguments)
-		local name = table.concat(arguments, " ") or "Area"
+	arguments = nut.type.string,
+	onRun = function(client, name)
 		local areaID = client:getArea()
 
 		if (!areaID) then

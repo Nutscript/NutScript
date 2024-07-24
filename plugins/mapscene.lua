@@ -166,12 +166,12 @@ local PLUGIN = PLUGIN
 
 nut.command.add("mapsceneadd", {
 	adminOnly = true,
-	syntax = "[bool isPair]",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.bool, nut.type.optional),
+	onRun = function(client, isPair)
 		local position, angles = client:EyePos(), client:EyeAngles()
 
 		-- This scene is in a pair for moving scenes.
-		if (util.tobool(arguments[1]) and !client.nutScnPair) then
+		if (isPair == true and !client.nutScnPair) then
 			client.nutScnPair = {position, angles}
 
 			return L("mapRepeat", client)
@@ -190,9 +190,9 @@ nut.command.add("mapsceneadd", {
 
 nut.command.add("mapsceneremove", {
 	adminOnly = true,
-	syntax = "[number radius]",
-	onRun = function(client, arguments)
-		local radius = tonumber(arguments[1]) or 280
+	arguments = nut.type.tor(nut.type.number, nut.type.optional),
+	onRun = function(client, radius)
+		radius = radius or 280
 		local position = client:GetPos()
 		local i = 0
 

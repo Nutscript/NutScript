@@ -1,51 +1,50 @@
+
 nut.command.add("roll", {
-	syntax = "[number maximum]",
-	onRun = function(client, arguments)
-		nut.chat.send(client, "roll", math.random(0, math.min(tonumber(arguments[1]) or 100, 100)))
+	arguments = nut.type.tor(nut.type.number, nut.type.optional),
+	onRun = function(client, maximum)
+		nut.chat.send(client, "roll", math.random(0, math.min(tonumber(maximum) or 100, 100)))
 	end
 })
 
 nut.command.add("pm", {
-	syntax = "<string target> <string message>",
-	onRun = function(client, arguments)
-		local message = table.concat(arguments, " ", 2)
-		local target = nut.command.findPlayer(client, arguments[1])
+	arguments = {
+		nut.type.player,
+		nut.type.string
+	},
+	onRun = function(client, target, message)
+		local voiceMail = target:getNutData("vm")
 
-		if (IsValid(target)) then
-			local voiceMail = target:getNutData("vm")
+		if (voiceMail and voiceMail:find("%S")) then
+			return target:Name()..": "..voiceMail
+		end
 
-			if (voiceMail and voiceMail:find("%S")) then
-				return target:Name()..": "..voiceMail
-			end
+		if ((client.nutNextPM or 0) < CurTime()) then
+			nut.chat.send(client, "pm", message, false, {client, target})
 
-			if ((client.nutNextPM or 0) < CurTime()) then
-				nut.chat.send(client, "pm", message, false, {client, target})
-
-				client.nutNextPM = CurTime() + 0.5
-				target.nutLastPM = client
-			end
+			client.nutNextPM = CurTime() + 0.5
+			target.nutLastPM = client
 		end
 	end
 })
 
 nut.command.add("reply", {
-	syntax = "<string message>",
-	onRun = function(client, arguments)
+	arguments = {
+		nut.type.string
+	},
+	onRun = function(client, message)
 		local target = client.nutLastPM
 
 		if (IsValid(target) and (client.nutNextPM or 0) < CurTime()) then
-			nut.chat.send(client, "pm", table.concat(arguments, " "), false, {client, target})
+			nut.chat.send(client, "pm", message, false, {client, target})
 			client.nutNextPM = CurTime() + 0.5
 		end
 	end
 })
 
 nut.command.add("setvoicemail", {
-	syntax = "[string message]",
-	onRun = function(client, arguments)
-		local message = table.concat(arguments, " ")
-
-		if (message:find("%S")) then
+	arguments = nut.type.tor(nut.type.string, nut.type.optional),
+	onRun = function(client, message)
+		if (message and message:find("%S")) then
 			client:setNutData("vm", message:sub(1, 240))
 
 			return "@vmSet"
@@ -59,253 +58,200 @@ nut.command.add("setvoicemail", {
 
 nut.command.add("flaggive", {
 	adminOnly = true,
-	syntax = "<string name> [string flags]",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
+	arguments = {
+		nut.type.character,
+		nut.type.tor(nut.type.string, nut.type.optional)
+	},
+	onRun = function(client, target, flags)
+		if (not flags) then
+			local available = ""
 
-		if (IsValid(target) and target:getChar()) then
-			local flags = arguments[2]
-
-			if (not flags) then
-				local available = ""
-
-				-- Aesthetics~~
-				for k in SortedPairs(nut.flag.list) do
-					if (not target:getChar():hasFlags(k)) then
-						available = available..k
-					end
+			-- Aesthetics~~
+			for k in SortedPairs(nut.flag.list) do
+				if (not target:hasFlags(k)) then
+					available = available..k
 				end
-
-				return client:requestString("@flagGiveTitle", "@flagGiveDesc", function(text)
-					nut.command.run(client, "flaggive", {target:Name(), text})
-				end, available)
 			end
 
-			target:getChar():giveFlags(flags)
-
-			nut.util.notifyLocalized("flagGive", nil, client:Name(), target:Name(), flags)
+			return client:requestString("@flagGiveTitle", "@flagGiveDesc", function(text)
+				nut.command.run(client, "flaggive", {target, text})
+			end, available)
 		end
+
+		target:giveFlags(flags)
+
+		nut.util.notifyLocalized("flagGive", nil, client:Name(), target:getName(), flags)
 	end
 })
 
 nut.command.add("flagtake", {
 	adminOnly = true,
-	syntax = "<string name> [string flags]",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target) and target:getChar()) then
-			local flags = arguments[2]
-
-			if (not flags) then
-				return client:requestString("@flagTakeTitle", "@flagTakeDesc", function(text)
-					nut.command.run(client, "flagtake", {target:Name(), text})
-				end, target:getChar():getFlags())
-			end
-
-			target:getChar():takeFlags(flags)
-
-			nut.util.notifyLocalized("flagTake", nil, client:Name(), flags, target:Name())
+	arguments = {
+		nut.type.character,
+		nut.type.tor(nut.type.string, nut.type.optional)
+	},
+	onRun = function(client, target, flags)
+		if (not flags) then
+			return client:requestString("@flagTakeTitle", "@flagTakeDesc", function(text)
+				nut.command.run(client, "flagtake", {target, text})
+			end, target:getFlags())
 		end
+
+		target:takeFlags(flags)
+
+		nut.util.notifyLocalized("flagTake", nil, client:Name(), flags, target:getName())
 	end
 })
 
 nut.command.add("charsetmodel", {
 	adminOnly = true,
-	syntax = "<string name> <string model>",
-	onRun = function(client, arguments)
-		if (not arguments[2]) then
-			return L("invalidArg", client, 2)
-		end
+	arguments = {
+		nut.type.character,
+		nut.type.string
+	},
+	onRun = function(client, target, model)
+		target:setModel(model)
+		target:getPlayer():SetupHands()
 
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target) and target:getChar()) then
-			target:getChar():setModel(arguments[2])
-			target:SetupHands()
-
-			nut.util.notifyLocalized("cChangeModel", nil, client:Name(), target:Name(), arguments[2])
-		end
+		nut.util.notifyLocalized("cChangeModel", nil, client:Name(), target:getName(), model)
 	end
 })
 
 nut.command.add("charsetskin", {
 	adminOnly = true,
-	syntax = "<string name> [number skin]",
-	onRun = function(client, arguments)
-		local skin = tonumber(arguments[2])
-		local target = nut.command.findPlayer(client, arguments[1])
+	arguments = {
+		nut.type.character,
+		nut.type.number
+	},
+	onRun = function(client, target, skin)
+		target:setData("skin", skin)
+		target:getPlayer():SetSkin(skin or 0)
 
-		if (IsValid(target) and target:getChar()) then
-			target:getChar():setData("skin", skin)
-			target:SetSkin(skin or 0)
-
-			nut.util.notifyLocalized("cChangeSkin", nil, client:Name(), target:Name(), skin or 0)
-		end
+		nut.util.notifyLocalized("cChangeSkin", nil, client:Name(), target:getName(), skin or 0)
 	end
 })
 
 nut.command.add("charsetbodygroup", {
 	adminOnly = true,
-	syntax = "<string name> <string bodyGroup> [number value]",
-	onRun = function(client, arguments)
-		local value = tonumber(arguments[3])
-		local target = nut.command.findPlayer(client, arguments[1])
+	arguments = {
+		nut.type.character,
+		nut.type.string,
+		nut.type.tor(nut.type.number, nut.type.optional)
+	},
+	onRun = function(client, target, bodygroup, value)
+		local index = target:getPlayer():FindBodygroupByName(bodygroup)
 
-		if (IsValid(target) and target:getChar()) then
-			local index = target:FindBodygroupByName(arguments[2])
-
-			if (index > -1) then
-				if (value and value < 1) then
-					value = nil
-				end
-
-				local groups = target:getChar():getData("groups", {})
-					groups[index] = value
-				target:getChar():setData("groups", groups)
-				target:SetBodygroup(index, value or 0)
-
-				nut.util.notifyLocalized("cChangeGroups", nil, client:Name(), target:Name(), arguments[2], value or 0)
-			else
-				return "@invalidArg", 2
+		if (index != -1) then
+			if (value and value < 1) then
+				value = nil
 			end
+
+			local groups = target:getData("groups", {})
+				groups[index] = value
+			target:setData("groups", groups)
+			target:getPlayer():SetBodygroup(index, value or 0)
+
+			nut.util.notifyLocalized("cChangeGroups", nil, client:Name(), target:getName(), bodygroup, value or 0)
+		else
+			client:notify("Bodygroup \'" .. bodygroup .. "\' was not found for \'" .. target:getName() .. "\'")
 		end
 	end
 })
 
 nut.command.add("charsetname", {
 	adminOnly = true,
-	syntax = "<string name> [string newName]",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target) and not arguments[2]) then
+	arguments = {
+		nut.type.character,
+		nut.type.tor(nut.type.string, nut.type.optional)
+	},
+	onRun = function(client, target, name)
+		if (not name) then
 			return client:requestString("@chgName", "@chgNameDesc", function(text)
-				nut.command.run(client, "charsetname", {target:Name(), text})
-			end, target:Name())
+				nut.command.run(client, "charsetname", {target, text})
+			end, target:getName())
 		end
 
-		table.remove(arguments, 1)
-
-		local targetName = table.concat(arguments, " ")
-
-		if (IsValid(target) and target:getChar()) then
-			nut.util.notifyLocalized("cChangeName", nil, client:Name(), target:Name(), targetName)
-
-			target:getChar():setName(targetName)
-		end
+		nut.util.notifyLocalized("cChangeName", nil, client:Name(), target:getName(), name)
+		target:setName(name)
 	end
 })
 
 nut.command.add("chargiveitem", {
 	adminOnly = true,
-	syntax = "<string name> <string item> <integer amount>",
-	onRun = function(client, arguments)
-		if (not arguments[2]) then
-			return L("invalidArg", client, 2)
-		end
+	arguments = {
+		nut.type.character,
+		nut.type.item,
+		nut.type.tor(nut.type.number, nut.type.optional),
+	},
+	onRun = function(client, target, name, amount)
+		local item = name.uniqueID
 
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target) and target:getChar()) then
-			local uniqueID = arguments[2]:lower()
-			local amount = tonumber(arguments[3])
-
-			if (not nut.item.list[uniqueID]) then
-				for k, v in SortedPairs(nut.item.list) do
-					if (nut.util.stringMatches(v.name, uniqueID)) then
-						uniqueID = k
-
-						break
-					end
+		target:getInv():add(item, amount or 1)
+			:next(function(res)
+				if (IsValid(target:getPlayer())) then
+					target:getPlayer():notifyLocalized("itemCreated")
 				end
-			end
-
-			if (arguments[3] and arguments[3] ~= "") and (not amount) then
-				return L("invalidArg", client, 3)
-			end
-
-			target:getChar():getInv():add(uniqueID, amount or 1)
-				:next(function(res)
-					if (IsValid(target)) then
-						target:notifyLocalized("itemCreated")
-					end
-					if (IsValid(client) and client ~= target) then
-						client:notifyLocalized("itemCreated")
-					end
-					hook.Run("CharGivenItem",target,res)
-				end)
-				:catch(function(err)
-					if (IsValid(client)) then
-						client:notifyLocalized(err)
-					end
-				end)
-		end
+				if (IsValid(client) and client ~= target:getPlayer()) then
+					client:notifyLocalized("itemCreated")
+				end
+				hook.Run("CharGivenItem", target:getPlayer(), res)
+			end)
+			:catch(function(err)
+				if (IsValid(client)) then
+					client:notifyLocalized(err)
+				end
+			end)
 	end
 })
 
 nut.command.add("charkick", {
 	adminOnly = true,
-	syntax = "<string name>",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target)) then
-			local char = target:getChar()
-			if (char) then
-				for k, v in ipairs(player.GetAll()) do
-					v:notifyLocalized("charKick", client:Name(), target:Name())
-				end
-
-				char:kick()
-			end
+	arguments = nut.type.character,
+	onRun = function(client, target)
+		for k, v in ipairs(player.GetAll()) do
+			v:notifyLocalized("charKick", client:Name(), target:getName())
 		end
+
+		target:kick()
 	end
 })
 
 nut.command.add("charban", {
-	syntax = "<string name>",
 	adminOnly = true,
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target)) then
-			local char = target:getChar()
-
-			if (char) then
-				nut.util.notifyLocalized("charBan", client:Name(), target:Name())
-				char:ban()
-			end
-		end
+	arguments = nut.type.character,
+	onRun = function(client, target)
+		nut.util.notifyLocalized("charBan", IsValid(client) and client:Name() or "System", target:getName())
+		target:ban()
 	end
 })
 
 nut.command.add("charunban", {
-	syntax = "<string name>",
 	adminOnly = true,
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.character, nut.type.string),
+	onRun = function(client, target)
 		if ((client.nutNextSearch or 0) >= CurTime()) then
 			return L("charSearching", client)
 		end
 
-		local name = table.concat(arguments, " ")
-
-		for k, v in pairs(nut.char.loaded) do
-			if (nut.util.stringMatches(v:getName(), name)) then
-				if (v:getData("banned")) then
-					v:setData("banned")
-					v:setData("permakilled")
+		if (nut.type(target) == nut.type.character) then
+			if (target:getData("banned")) then
+				target:setData("banned", nil)
+				target:setData("permakilled", nil)
+				nut.util.notifyLocalized("charUnBan", nil, IsValid(client) and client:Name() or "System", target:getName())
+				return
+			else
+				if (IsValid(client)) then
+					client:notifyLocalized("charNotBanned")
 				else
-					return "@charNotBanned"
+					print("This character is not banned.")
 				end
-
-				return nut.util.notifyLocalized("charUnBan", nil, client:Name(), v:getName())
+				return
 			end
 		end
 
 		client.nutNextSearch = CurTime() + 15
 
-		nut.db.query("SELECT _id, _name, _data FROM nut_characters WHERE _name LIKE \"%"..nut.db.escape(name).."%\" LIMIT 1", function(data)
+		nut.db.query("SELECT _id, _name, _data FROM nut_characters WHERE _name LIKE \"%" .. nut.db.escape(target) .. "%\" LIMIT 1", function(data)
 			if (data and data[1]) then
 				local charID = tonumber(data[1]._id)
 				local data = util.JSONToTable(data[1]._data or "[]")
@@ -318,22 +264,20 @@ nut.command.add("charunban", {
 
 				data.banned = nil
 
-				nut.db.updateTable({_data = data}, nil, nil, "_id = "..charID)
-				nut.util.notifyLocalized("charUnBan", nil, client:Name(), nut.char.loaded[charID]:getName())
+				nut.db.updateTable({_data = data}, nil, "characters", "_id = " .. charID)
+				nut.util.notifyLocalized("charUnBan", nil, IsValid(client) and client:Name() or "System", nut.char.loaded[charID]:getName())
 			end
 		end)
 	end
 })
 
 nut.command.add("givemoney", {
-	syntax = "<number amount>",
-	onRun = function(client, arguments)
-		local number = tonumber(arguments[1])
-		number = number or 0
+	arguments = nut.type.number,
+	onRun = function(client, number)
 		local amount = math.floor(number)
 
-		if (not amount or not isnumber(amount) or amount <= 0) then
-			return L("invalidArg", client, 1)
+		if (amount < 1) then
+			return client:notify("Amount must be greater than zero.")
 		end
 
 		local data = {}
@@ -362,38 +306,30 @@ nut.command.add("givemoney", {
 
 nut.command.add("charsetmoney", {
 	adminOnly = true,
-	syntax = "<string target> <number amount>",
-	onRun = function(client, arguments)
-		local amount = tonumber(arguments[2])
+	arguments = {
+		nut.type.character,
+		nut.type.number
+	},
+	onRun = function(client, target, money)
+		local amount = math.floor(money)
 
-		if (not amount or not isnumber(amount) or amount < 0) then
-			return "@invalidArg", 2
+		if (amount < 0) then
+			return client:notify("Amount must be atleast zero.")
 		end
 
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target)) then
-			local char = target:getChar()
-
-			if (char and amount) then
-				amount = math.Round(amount)
-				char:setMoney(amount)
-				client:notifyLocalized("setMoney", target:Name(), nut.currency.get(amount))
-			end
-		end
+		target:setMoney(amount)
+		client:notifyLocalized("setMoney", target:getName(), nut.currency.get(amount))
 	end
 })
 
 nut.command.add("dropmoney", {
-	syntax = "<number amount>",
-	onRun = function(client, arguments)
-		local amount = tonumber(arguments[1])
+	arguments = nut.type.number,
+	onRun = function(client, money)
+		local amount = math.floor(money)
 
-		if (not amount or not isnumber(amount) or amount < 1) then
-			return "@invalidArg", 1
+		if (amount < 1) then
+			return client:notify("Amount must be greater than zero.")
 		end
-
-		amount = math.Round(amount)
 
 		if (not client:getChar():hasMoney(amount)) then
 			return
@@ -410,26 +346,23 @@ nut.command.add("dropmoney", {
 
 nut.command.add("plywhitelist", {
 	adminOnly = true,
-	syntax = "<string name> <string faction>",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
+	arguments = {
+		nut.type.player,
+		nut.type.faction
+	},
+	onRun = function(client, target, name)
+		local faction = name
 
-		if (IsValid(target)) then
-			local faction = nut.command.findFaction(client,table.concat(arguments, " ", 2))
-
-			if (faction) then
-				if (target:setWhitelisted(faction.index, true)) then
-					for k, v in ipairs(player.GetAll()) do
-						v:notifyLocalized("whitelist", client:Name(), target:Name(), L(faction.name, v))
-					end
-				end
+		if (target:setWhitelisted(faction.index, true)) then
+			for k, v in ipairs(player.GetAll()) do
+				v:notifyLocalized("whitelist", client:Name(), target:Name(), L(faction.name, v))
 			end
 		end
 	end
 })
 
 nut.command.add("chargetup", {
-	onRun = function(client, arguments)
+	onRun = function(client)
 		local entity = client.nutRagdoll
 
 		if (IsValid(entity) and entity.nutGrace and entity.nutGrace < CurTime() and entity:GetVelocity():Length2D() < 8 and not entity.nutWakingUp) then
@@ -448,29 +381,24 @@ nut.command.add("chargetup", {
 
 nut.command.add("plyunwhitelist", {
 	adminOnly = true,
-	syntax = "<string name> <string faction>",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
+	arguments = {
+		nut.type.player,
+		nut.type.faction
+	},
+	onRun = function(client, target, name)
+		local faction = name
 
-		if (IsValid(target)) then
-			local faction = nut.command.findFaction(client,table.concat(arguments, " ", 2))
-
-			if (faction) then
-				if (target:setWhitelisted(faction.index, false)) then
-					for k, v in ipairs(player.GetAll()) do
-						v:notifyLocalized("unwhitelist", client:Name(), target:Name(), L(faction.name, v))
-					end
-				end
+		if (target:setWhitelisted(faction.index, false)) then
+			for k, v in ipairs(player.GetAll()) do
+				v:notifyLocalized("unwhitelist", client:Name(), target:Name(), L(faction.name, v))
 			end
 		end
 	end
 })
 
 nut.command.add("fallover", {
-	syntax = "[number time]",
-	onRun = function(client, arguments)
-		local time = tonumber(arguments[1])
-
+	arguments = nut.type.tor(nut.type.number, nut.type.optional),
+	onRun = function(client, time)
 		if (not isnumber(time)) then
 			time = 5
 		end
@@ -488,43 +416,20 @@ nut.command.add("fallover", {
 })
 
 nut.command.add("beclass", {
-	syntax = "<string class>",
-	onRun = function(client, arguments)
-		local class = table.concat(arguments, " ")
+	arguments = nut.type.class,
+	onRun = function(client, name)
+		local class = name
+
 		local char = client:getChar()
 
 		if (IsValid(client) and char) then
-			local num = isnumber(tonumber(class)) and tonumber(class) or -1
-
-			if (nut.class.list[num]) then
-				local v = nut.class.list[num]
-
-				if (char:joinClass(num)) then
-					client:notifyLocalized("becomeClass", L(v.name, client))
-
-					return
-				else
-					client:notifyLocalized("becomeClassFail", L(v.name, client))
-
-					return
-				end
+			if (char:joinClass(class.index)) then
+				client:notifyLocalized("becomeClass", L(class.name, client))
+				return
 			else
-				for k, v in ipairs(nut.class.list) do
-					if (nut.util.stringMatches(v.uniqueID, class) or nut.util.stringMatches(L(v.name, client), class)) then
-						if (char:joinClass(k)) then
-							client:notifyLocalized("becomeClass", L(v.name, client))
-
-							return
-						else
-							client:notifyLocalized("becomeClassFail", L(v.name, client))
-
-							return
-						end
-					end
-				end
+				client:notifyLocalized("becomeClassFail", L(class.name, client))
+				return
 			end
-
-			client:notifyLocalized("invalid", L("class", client))
 		else
 			client:notifyLocalized("illegalAccess")
 		end
@@ -532,24 +437,22 @@ nut.command.add("beclass", {
 })
 
 nut.command.add("chardesc", {
-	syntax = "<string desc>",
-	onRun = function(client, arguments)
-		arguments = table.concat(arguments, " ")
-
-		if (not arguments:find("%S")) then
+	arguments = nut.type.tor(nut.type.string, nut.type.optional),
+	onRun = function(client, desc)
+		if (not desc or not desc:find("%S")) then
 			return client:requestString("@chgDesc", "@chgDescDesc", function(text)
 				nut.command.run(client, "chardesc", {text})
 			end, client:getChar():getDesc())
 		end
 
 		local info = nut.char.vars.desc
-		local result, fault, count = info.onValidate(arguments)
+		local result, fault, count = info.onValidate(desc)
 
 		if (result == false) then
 			return "@"..fault, count
 		end
 
-		client:getChar():setDesc(arguments)
+		client:getChar():setDesc(desc)
 
 		return "@descChanged"
 	end
@@ -557,11 +460,13 @@ nut.command.add("chardesc", {
 
 nut.command.add("plytransfer", {
 	adminOnly = true,
-	syntax = "<string name> <string faction>",
-	onRun = function(client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
-		local faction = nut.command.findFaction(client, table.concat(arguments, " ", 2))
+	arguments = {
+		nut.type.player,
+		nut.type.faction
+	},
+	onRun = function(client, target, name)
 		local character = target:getChar()
+		local faction = name
 
 		if (not IsValid(target) or not character) then
 			return "@plyNotExist"
@@ -591,17 +496,13 @@ nut.command.add("plytransfer", {
 -- Credit goes to SmithyStanley
 nut.command.add("clearinv", {
 	adminOnly = true,
-	syntax = "<string name>",
-	onRun = function (client, arguments)
-		local target = nut.command.findPlayer(client, arguments[1])
-
-		if (IsValid(target) and target:getChar()) then
-			for k, v in pairs(target:getChar():getInv():getItems()) do
-				v:remove()
-			end
-
-			client:notifyLocalized("resetInv", target:getChar():getName())
+	arguments = nut.type.character,
+	onRun = function (client, target)
+		for k, v in pairs(target:getInv():getItems()) do
+			v:remove()
 		end
+
+		client:notifyLocalized("resetInv", target:getName())
 	end
 })
 

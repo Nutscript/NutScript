@@ -143,12 +143,13 @@ end
 
 nut.command.add("paneladd", {
 	adminOnly = true,
-	syntax = "<string url> [number w] [number h] [number scale]",
-	onRun = function(client, arguments)
-		if (!arguments[1]) then
-			return L("invalidArg", client, 1)
-		end
-
+	arguments = {
+		nut.type.string,
+		nut.type.tor(nut.type.number, nut.type.optional),
+		nut.type.tor(nut.type.number, nut.type.optional),
+		nut.type.tor(nut.type.number, nut.type.optional)
+	},
+	onRun = function(client, url, w, h, scale)
 		-- Get the position and angles of the panel.
 		local trace = client:GetEyeTrace()
 		local position = trace.HitPos
@@ -157,7 +158,7 @@ nut.command.add("paneladd", {
 		angles:RotateAroundAxis(angles:Forward(), 90)
 
 		-- Add the panel.
-		PLUGIN:addPanel(position + angles:Up()*0.1, angles, arguments[1], tonumber(arguments[2]), tonumber(arguments[3]), tonumber(arguments[4]))
+		PLUGIN:addPanel(position + angles:Up()*0.1, angles, url, w, h, scale)
 
 		-- Tell the player the panel was added.
 		return L("panelAdded", client)
@@ -166,13 +167,13 @@ nut.command.add("paneladd", {
 
 nut.command.add("panelremove", {
 	adminOnly = true,
-	syntax = "[number radius]",
-	onRun = function(client, arguments)
+	arguments = nut.type.tor(nut.type.number, nut.type.optional),
+	onRun = function(client, radius)
 		-- Get the origin to remove panel.
 		local trace = client:GetEyeTrace()
 		local position = trace.HitPos
 		-- Remove the panel(s) and get the amount removed.
-		local amount = PLUGIN:removePanel(position, tonumber(arguments[1]))
+		local amount = PLUGIN:removePanel(position, radius)
 
 		-- Tell the player how many panels got removed.
 		return L("panelRemoved", client, amount)

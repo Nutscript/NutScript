@@ -1,24 +1,95 @@
+
 nut.command = nut.command or {}
 nut.command.list = nut.command.list or {}
 
 local COMMAND_PREFIX = "/"
 
--- Adds a new command to the list of commands.
-function nut.command.add(command, data)
-	-- For showing users the arguments of the command.
-	data.syntax = data.syntax or "[none]"
+local function buildTypeName(types, bIsOr)
+	local name = ""
 
-	-- Why bother adding a command if it doesn't do anything.
-	if (!data.onRun) then
-		return ErrorNoHalt("Command '"..command.."' does not have a callback, not adding!\n")
+	for k, v in ipairs(types) do
+		if (isfunction(v)) then
+			name = name .. "(" .. buildTypeName(nut.type.getMultiple(v), nut.types.ors[v]) .. ")"
+		else
+			name = name .. v .. (k != #types and (bIsOr and "|" or "&") or "")
+		end
 	end
 
-	-- Store the old onRun because we're able to change it.
+	return name
+end
+
+function nut.command.add(name, data)
+	if (!isstring(name)) then
+		return ErrorNoHaltWithStack("nut.command.add expected string for #1 argument but got: " .. type(name))
+	end
+
+	if (!istable(data)) then
+		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected table for #2 argument but got: " .. type(data))
+	end
+
+	if (!isfunction(data.onRun)) then
+		return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") expected an onRun function in #2 argument but got: " .. type(data.onRun))
+	end
+
+	-- new argument system
+	if (isstring(data.arguments) or isfunction(data.arguments)) then
+		data.arguments = {data.arguments}
+	end
+
+	if (istable(data.arguments)) then
+		local missingArguments = {}
+		local syntaxes = {}
+
+		local hadOptionalArgument
+
+		for i, v in ipairs(data.arguments) do
+			local argumentName = debug.getlocal(data.onRun, i + 1)
+
+			local types = nut.type.getMultiple(v)
+			local bIsOr = nut.type.ors[v]
+			local bIsOptional = bIsOr and table.HasValue(types, nut.type.optional)
+
+			if (bIsOptional) then
+				hadOptionalArgument = true
+			elseif (hadOptionalArgument) then
+				return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") a required argument is after an optional argument, optional arguments must be last")
+			end
+
+			-- we don't want 'optional' text showing up in the argument syntax
+			for k, nutType in pairs(types) do
+				if (nutType == nut.type.optional) then
+					types[k] = nil
+				end
+			end
+
+			local typeName = buildTypeName(types, bIsOr)
+
+			if (argumentName) then
+				if (v != nut.type.optional) then
+					table.insert(syntaxes, bIsOptional and "[" .. typeName .. ": " .. argumentName .. "]" or "<" .. typeName .. ": " .. argumentName .. ">")
+				end
+			else
+				table.insert(missingArguments, typeName)
+			end
+		end
+
+		if (#missingArguments > 0) then
+			return ErrorNoHaltWithStack("nut.command.add(\"" .. name .. "\") is missing (" .. table.concat(missingArguments, ", ") .. ") argument declarations(s) in the onRun function")
+		end
+
+		-- build syntax if we don't have a custom syntax
+		if (!data.syntax and #syntaxes > 0) then
+			data.syntax = table.concat(syntaxes, " ")
+		end
+	end
+
+	data.syntax = data.syntax or "[none]"
+
 	if (!data.onCheckAccess) then
 		-- Check if the command is for basic admins only.
 		if (data.adminOnly) then
 			data.onCheckAccess = function(client)
-				return client:IsAdmin()
+				return !IsValid(client) and true or client:IsAdmin()
 			end
 		-- Or if it is only for super administrators.
 		elseif (data.superAdminOnly) then
@@ -55,9 +126,9 @@ function nut.command.add(command, data)
 		local onRun = data.onRun
 
 		data._onRun = data.onRun -- for refactoring purpose.
-		data.onRun = function(client, arguments)
-			if (hook.Run("CanPlayerUseCommand", client, command) or onCheckAccess(client)) then
-				return onRun(client, arguments)
+		data.onRun = function(client, ...)
+			if (hook.Run("CanPlayerUseCommand", client, name) or onCheckAccess(client)) then
+				return onRun(client, ...)
 			else
 				return "@noPerm"
 			end
@@ -77,12 +148,12 @@ function nut.command.add(command, data)
 		end
 	end
 
-	if (command == command:lower()) then
-		nut.command.list[command] = data
+	if (name == name:lower()) then
+		nut.command.list[name] = data
 	else
-		data.realCommand = command
+		data.realCommand = name
 
-		nut.command.list[command:lower()] = data
+		nut.command.list[name:lower()] = data
 	end
 end
 
@@ -186,10 +257,10 @@ if (SERVER) then
 	-- Forces a player to run a command.
 	function nut.command.run(client, command, arguments)
 		command = nut.command.list[command:lower()]
+		arguments = arguments or {}
 
 		if (command) then
-			-- Run the command's callback and get the return.
-			local results = {command.onRun(client, arguments or {})}
+			local results = {command.onRun(client, unpack(command.arguments and arguments or {arguments}))}
 			local result = results[1]
 
 			-- If a string is returned, it is a notification.
@@ -231,9 +302,82 @@ if (SERVER) then
 			local command = nut.command.list[match]
 			-- We have a valid, registered command.
 			if (command) then
-				-- Get the arguments like a console command.
-				if (!arguments) then
-					arguments = nut.command.extractArgs(text:sub(#match + 3))
+				arguments = arguments or nut.command.extractArgs(text:sub(#match + 3))
+
+				if (command.arguments) then
+					for k, v in ipairs(command.arguments) do
+						local types = nut.type.getMultiple(v)
+						local bIsOptional = table.HasValue(types, nut.type.optional)
+
+						if (arguments[k] and k == #command.arguments and table.HasValue(types, nut.type.string)) then	
+							for _ = k + 1, #arguments do
+								arguments[k] = arguments[k] .. " " .. arguments[k + 1]
+								table.remove(arguments, k + 1)
+							end
+						end
+
+						local argument = arguments[k]
+
+						-- we don't want 'optional' text showing up in the argument syntax
+						for k, nutType in pairs(types) do
+							if (nutType == nut.type.optional) then
+								types[k] = nil
+							end
+						end
+
+						local typeName = buildTypeName(types, nut.type.ors[v])
+
+						if (!bIsOptional) then
+							if (argument == nil or argument == "") then
+								if (IsValid(client)) then
+									client:notify("Missing argument #" .. k .. " expected \'" .. typeName .. "\'")
+								else
+									print("Missing argument #" .. k .. " expected \'" .. typeName .. "\'")
+								end
+
+								return true
+							end
+						end
+
+						if (arguments[k]) then
+							if (IsValid(client)) then
+								if (table.HasValue(types, nut.type.player) or table.HasValue(types, nut.type.character)) then
+									if (argument == "^") then
+										argument = client
+									elseif (argument == "@") then
+										local trace = client:GetEyeTrace().Entity
+
+										if (IsValid(trace) and trace:IsPlayer()) then
+											argument = trace
+										else
+											client:notifyLocalized("lookToUseAt")
+											return true
+										end
+									end
+								end
+							end
+
+							local resolve = nut.type.resolve(v, argument)
+
+							if (resolve == nil) then
+								resolve = argument
+							end
+
+							local success = isfunction(v) and v(resolve) or nut.type.assert(v, resolve)
+
+							if (success or v == nut.type.optional) then
+								arguments[k] = resolve
+							else
+								if (IsValid(client)) then
+									client:notify("Invalid \'" .. typeName .. "\' to argument #" .. k)
+								else
+									print("Invalid \'" .. typeName .. "\' to argument #" .. k)
+								end
+
+								return true
+							end
+						end
+					end
 				end
 
 				-- Runs the actual command.
