@@ -177,4 +177,20 @@ function PLUGIN:PlayerAccessVendor(client, vendor)
 	net.Start("nutVendorOpen")
 		net.WriteEntity(vendor)
 	net.Send(client)
+
+	-- Then, make sure admins have updated faction/class access data.
+	if (client:IsAdmin()) then
+		for factionID in pairs(vendor.factions) do
+			net.Start("nutVendorAllowFaction")
+				net.WriteUInt(factionID, 8)
+				net.WriteBool(true)
+			net.Send(client)
+		end
+		for classID in pairs(vendor.classes) do
+			net.Start("nutVendorAllowClass")
+				net.WriteUInt(classID, 8)
+				net.WriteBool(true)
+			net.Send(client)
+		end
+	end
 end

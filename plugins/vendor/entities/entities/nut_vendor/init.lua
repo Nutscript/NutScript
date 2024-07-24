@@ -325,21 +325,6 @@ function ENT:sync(client)
 			net.WriteInt(item[VENDOR_MODE] or -1, 8)
 		end
 	net.Send(client)
-
-	if (client:IsAdmin()) then
-		for factionID in pairs(self.factions) do
-			net.Start("nutVendorAllowFaction")
-				net.WriteUInt(factionID, 8)
-				net.WriteBool(true)
-			net.Send(client)
-		end
-		for classID in pairs(self.classes) do
-			net.Start("nutVendorAllowClass")
-				net.WriteUInt(classID, 8)
-				net.WriteBool(true)
-			net.Send(client)
-		end
-	end
 end
 
 function ENT:addReceiver(client, noSync)
