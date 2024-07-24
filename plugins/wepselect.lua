@@ -8,9 +8,6 @@ local RunConsoleCommand, LocalPlayer, math, color_white, surface = RunConsoleCom
 local pi = math.pi
 
 if (CLIENT) then
-
-	nut.lang.stored["english"]["invertWepselectScroll"] = "Invert direction of weapon selection scroll"
-
 	NUT_CVAR_WEPSELECT_INVERT = CreateClientConVar("nut_wepselect_invert", 0, true)
 
 	PLUGIN.index = PLUGIN.index or 1
@@ -166,7 +163,7 @@ if (CLIENT) then
 	function PLUGIN:SetupQuickMenu(menu)
 		menu:addCategory(self.name)
 
-		local button = menu:addCheck(L"invertWepselectScroll", function(panel, state)
+		local button = menu:addCheck(L"invertWepSelectScroll", function(panel, state)
 			if (state) then
 				RunConsoleCommand("nut_wepselect_invert", "1")
 			else
