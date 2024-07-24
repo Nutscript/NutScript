@@ -15,6 +15,11 @@ env:
       41455508,
       41898282
     ]
+  MAINTAINERS: |
+    [
+      54110479,
+      21306782
+    ]
 
 jobs:
   build-cache:
@@ -68,12 +73,18 @@ jobs:
             const writeFileAsync = util.promisify(fs.writeFile)
 
             const blocklist = JSON.parse(process.env.BLOCKLIST)
+            const maintainers = JSON.parse(process.env.MAINTAINERS)
             const contributors = JSON.parse(process.env.getContributors)
             const names = JSON.parse(process.env.getNames)
 
             var blockedUsers = {}
             for (i = 0; i < blocklist.length; i++) {
               blockedUsers[blocklist[i]] = true
+            }
+
+            var maintainerUsers = {}
+            for (i = 0; i < maintainers.length; i++) {
+              maintainerUsers[maintainers[i]] = true
             }
 
             var namedUsers = {}
@@ -90,6 +101,7 @@ jobs:
                   id: contributor.id,
                   name: namedUsers[contributor.node_id] ? namedUsers[contributor.node_id] : contributor.login,
                   login: contributor.login,
+                  maintainer: maintainerUsers[contributor.id] ? true : null
                 })
 
                 const avatarData = await fetch("https://avatars.githubusercontent.com/u/" + contributor.id, {
