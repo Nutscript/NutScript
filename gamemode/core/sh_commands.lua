@@ -560,11 +560,16 @@ nut.command.add("plytransfer", {
 	syntax = "<string name> <string faction>",
 	onRun = function(client, arguments)
 		local target = nut.command.findPlayer(client, arguments[1])
+
+		if (not IsValid(target)) then
+			return
+		end
+
 		local faction = nut.command.findFaction(client, table.concat(arguments, " ", 2))
 		local character = target:getChar()
 
-		if (not IsValid(target) or not character) then
-			return "@plyNotExist"
+		if (not character) then
+			return
 		end
 
 		-- Find the specified faction.
