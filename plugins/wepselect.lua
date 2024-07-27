@@ -8,6 +8,7 @@ local RunConsoleCommand, LocalPlayer, math, color_white, surface = RunConsoleCom
 local pi = math.pi
 
 if (CLIENT) then
+	NUT_CVAR_WEPSELECT_INVERT = CreateClientConVar("nut_wepselect_invert", 0, true)
 
 	PLUGIN.index = PLUGIN.index or 1
 	PLUGIN.deltaIndex = PLUGIN.deltaIndex or PLUGIN.index
@@ -159,6 +160,20 @@ if (CLIENT) then
 		end
 	end
 
+	function PLUGIN:SetupQuickMenu(menu)
+		menu:addCategory(self.name)
+
+		local button = menu:addCheck(L"invertWepSelectScroll", function(panel, state)
+			if (state) then
+				RunConsoleCommand("nut_wepselect_invert", "1")
+			else
+				RunConsoleCommand("nut_wepselect_invert", "0")
+			end
+		end, NUT_CVAR_WEPSELECT_INVERT:GetBool())
+
+		menu:addSpacer()
+	end
+
 	function PLUGIN:PlayerBindPress(client, bind, pressed)
 		local weapon = client:GetActiveWeapon()
 		local lPly = LocalPlayer()
@@ -175,7 +190,13 @@ if (CLIENT) then
 
 		local total = table.Count(client:GetWeapons())
 
-		if (bind:find("invprev")) then
+		local invprev, invnext = isnumber(bind:find("invprev")), isnumber(bind:find("invnext"))
+
+		if (NUT_CVAR_WEPSELECT_INVERT:GetBool()) then
+			invprev, invnext = invnext, invprev
+		end
+
+		if (invprev) then
 			self.index = self.index - 1
 			if (self.index < 1) then
 				self.index = total
@@ -183,7 +204,7 @@ if (CLIENT) then
 
 			self:onIndexChanged()
 			return true
-		elseif (bind:find("invnext")) then
+		elseif (invnext) then
 			self.index = self.index + 1
 			if (self.index > total) then
 				self.index = 1

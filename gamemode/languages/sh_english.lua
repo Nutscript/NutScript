@@ -268,4 +268,6 @@ LANGUAGE = {
 	-- 2023 patch
 
 	togglePluginsDesc = "Selected Plugins will be disabled.\nThe map must be restarted after making changes!",
+
+	invertWepSelectScroll = "Invert direction of weapon selection scroll",
 }
