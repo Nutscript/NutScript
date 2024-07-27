@@ -185,11 +185,11 @@ if (SERVER) then
 
 	-- Forces a player to run a command.
 	function nut.command.run(client, command, arguments)
-		command = nut.command.list[command:lower()]
+		local commandTbl = nut.command.list[command:lower()]
 
-		if (command) then
+		if (commandTbl) then
 			-- Run the command's callback and get the return.
-			local results = {command.onRun(client, arguments or {})}
+			local results = {commandTbl.onRun(client, arguments or {})}
 			local result = results[1]
 
 			-- If a string is returned, it is a notification.
@@ -201,12 +201,14 @@ if (SERVER) then
 					else
 						client:notify(result)
 					end
-
-					nut.log.add(client, "command", command, table.concat(arguments, ", "))
 				else
 					-- Show the message in server console since we're running from RCON.
 					print(result)
 				end
+			end
+
+			if (IsValid(client)) then
+				nut.log.add(client, "command", COMMAND_PREFIX .. command .. (#arguments > 0 and " " or "") .. table.concat(arguments, " "))
 			end
 		end
 	end
@@ -238,10 +240,6 @@ if (SERVER) then
 
 				-- Runs the actual command.
 				nut.command.run(client, match, arguments)
-
-				if (!realCommand) then
-					nut.log.add(client, "command", text)
-				end
 			else
 				if (IsValid(client)) then
 					client:notifyLocalized("cmdNoExist")
