@@ -24,7 +24,7 @@ end)
 net.Receive("nutVendorEdit", function(_, client)
 	local key = net.ReadString()
 
-	if (not client:IsAdmin()) then return end
+	if (not CAMI.PlayerHasAccess(client, "NS.ManageVendors")) then return end
 
 	local vendor = client.nutVendor
 	if (not IsValid(vendor) or not EDITOR[key]) then return end

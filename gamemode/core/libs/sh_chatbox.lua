@@ -206,6 +206,29 @@ else
 	end)
 end
 
+CAMI.RegisterPrivilege({
+	Name = "NS.OOC.BypassDelay",
+	MinAccess = "admin"
+})
+
+CAMI.RegisterPrivilege({
+	Name = "NS.OOC.Shield",
+	MinAccess = "superadmin"
+})
+
+CAMI.RegisterPrivilege({
+	Name = "NS.OOC.Star",
+	MinAccess = "admin"
+})
+
+CAMI.RegisterPrivilege({
+	Name = "NS.OOC.Wrench"
+})
+
+CAMI.RegisterPrivilege({
+	Name = "NS.OOC.Heart"
+})
+
 -- Add the default chat types here.
 do
 	-- Load the chat types after the configs so we can access changed configs.
@@ -297,8 +320,10 @@ do
 					if (delay > 0 and speaker.nutLastOOC) then
 						local lastOOC = CurTime() - speaker.nutLastOOC
 
+						local hasBypassDelayPermission = CAMI.PlayerHasAccess(speaker, "NS.OOC.BypassDelay")
+
 						-- Use this method of checking time in case the oocDelay config changes (may not affect admins).
-						if (lastOOC <= delay and (not speaker:IsAdmin() or speaker:IsAdmin() and nut.config.get("oocDelayAdmin", false))) then
+						if (lastOOC <= delay and (not hasBypassDelayPermission or hasBypassDelayPermission and nut.config.get("oocDelayAdmin", false))) then
 							speaker:notifyLocalized("oocDelay", delay - math.ceil(lastOOC))
 
 							return false
@@ -323,13 +348,13 @@ do
 				-- it's on your own.
 				if (customIcons[speaker:SteamID()]) then
 					icon = customIcons[speaker:SteamID()]
-				elseif (speaker:IsSuperAdmin()) then
+				elseif (CAMI.PlayerHasAccess(speaker, "NS.OOC.Shield")) then
 					icon = "icon16/shield.png"
-				elseif (speaker:IsAdmin()) then
+				elseif (CAMI.PlayerHasAccess(speaker, "NS.OOC.Star")) then
 					icon = "icon16/star.png"
-				elseif (speaker:IsUserGroup("moderator") or speaker:IsUserGroup("operator")) then
+				elseif (CAMI.PlayerHasAccess(speaker, "NS.OOC.Wrench")) then
 					icon = "icon16/wrench.png"
-				elseif (speaker:IsUserGroup("vip") or speaker:IsUserGroup("donator") or speaker:IsUserGroup("donor")) then
+				elseif (CAMI.PlayerHasAccess(speaker, "NS.OOC.Heart")) then
 					icon = "icon16/heart.png"
 				end
 
@@ -351,11 +376,13 @@ do
 				local delay = nut.config.get("loocDelay", 0)
 
 				-- Only need to check the time if they have spoken in LOOC chat before.
-				if (speaker:IsAdmin() and nut.config.get("loocDelayAdmin", false) and delay > 0 and speaker.nutLastLOOC) then
+				if (delay > 0 and speaker.nutLastLOOC) then
 					local lastLOOC = CurTime() - speaker.nutLastLOOC
 
+					local hasBypassDelayPermission = CAMI.PlayerHasAccess(speaker, "NS.OOC.BypassDelay")
+
 					-- Use this method of checking time in case the oocDelay config changes (may not affect admins).
-					if (lastLOOC <= delay and (not speaker:IsAdmin() or speaker:IsAdmin() and nut.config.get("loocDelayAdmin", false))) then
+					if (lastLOOC <= delay and (not hasBypassDelayPermission or hasBypassDelayPermission and nut.config.get("loocDelayAdmin", false))) then
 						speaker:notifyLocalized("loocDelay", delay - math.ceil(lastLOOC))
 
 						return false
@@ -403,13 +430,10 @@ local color_orange = Color(255, 150, 0)
 
 -- Global events.
 nut.chat.register("event", {
-	onCanSay =  function(speaker, text)
-		return speaker:IsAdmin()
-	end,
 	onChatAdd = function(speaker, text)
 		chat.AddText(nut.chat.timestamp(false), color_orange, text)
 	end,
-	prefix = {"/event"}
+	deadCanChat = true
 })
 
 -- Why does ULX even have a /me command?

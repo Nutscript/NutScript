@@ -6,6 +6,11 @@ PLUGIN.areaTable = PLUGIN.areaTable or {}
 nut.area = nut.area or {}
 ALWAYS_RAISED["nut_areahelper"] = true
 
+CAMI.RegisterPrivilege({
+	Name = "NS.ManageAreas",
+	MinAccess = "admin"
+})
+
 nut.config.add("areaFontSize", 26, "The size of the font of Area Display.",
 	function(oldValue, newValue)
 		if (CLIENT) then
@@ -148,8 +153,8 @@ if (SERVER) then
 	end
 
 	netstream.Hook("areaEdit", function(client, areaID, editData)
-		-- Only Admin can edit the area.
-		if (!client:IsAdmin()) then
+		-- Only players with the "NS.ManageAreas" permission can edit the area.
+		if (!CAMI.PlayerHasAccess(client, "NS.ManageAreas")) then
 			return false
 		end
 
@@ -165,8 +170,8 @@ if (SERVER) then
 	end)
 
 	netstream.Hook("areaTeleport", function(client, areaID, editData)
-		-- Only Admin can do this.
-		if (!client:IsAdmin()) then
+		-- Only players with the "NS.ManageAreas" permission can do this.
+		if (!CAMI.PlayerHasAccess(client, "NS.ManageAreas")) then
 			return false
 		end
 
@@ -180,8 +185,8 @@ if (SERVER) then
 	end)
 
 	netstream.Hook("areaAdd", function(client, name, vector1, vector2)
-		-- Only Admin can edit the area.
-		if (!client:IsAdmin() or !vector1 or !vector2 or !name) then
+		-- Only players with the "NS.ManageAreas" permission can edit the area.
+		if (!CAMI.PlayerHasAccess(client, "NS.ManageAreas") or !vector1 or !vector2 or !name) then
 			return false
 		end
 
@@ -189,8 +194,8 @@ if (SERVER) then
 	end)
 
 	netstream.Hook("areaRemove", function(client, areaID, editData)
-		-- Only Admin can edit the area.
-		if (!client:IsAdmin()) then
+		-- Only players with the "NS.ManageAreas" permission can edit the area.
+		if (!CAMI.PlayerHasAccess(client, "NS.ManageAreas")) then
 			return false
 		end
 

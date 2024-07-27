@@ -2,6 +2,11 @@ PLUGIN.name = "Observer"
 PLUGIN.author = "Chessnut"
 PLUGIN.desc = "Adds on to the no-clip mode to prevent instrusion."
 
+CAMI.RegisterPrivilege({
+	Name = "NS.Observer",
+	MinAccess = "admin"
+})
+
 if (CLIENT) then
 	-- Create a setting to see if the player will teleport back after noclipping.
 	NUT_CVAR_OBSTPBACK = CreateClientConVar("nut_obstpback", 0, true, true)
@@ -13,7 +18,7 @@ if (CLIENT) then
 	function PLUGIN:HUDPaint()
 		client = LocalPlayer()
 
-		if (client:IsAdmin() and client:GetMoveType() == MOVETYPE_NOCLIP and !client:InVehicle() and NUT_CVAR_ADMINESP:GetBool()) then
+		if (CAMI.PlayerHasAccess(client, "NS.Observer") and client:GetMoveType() == MOVETYPE_NOCLIP and !client:InVehicle() and NUT_CVAR_ADMINESP:GetBool()) then
 			sx, sy = ScrW(), ScrH()
 
 			for k, v in ipairs(player.GetAll()) do
@@ -40,7 +45,7 @@ if (CLIENT) then
 	end
 
 	function PLUGIN:SetupQuickMenu(menu)
-		if (LocalPlayer():IsAdmin()) then
+		if (CAMI.PlayerHasAccess(LocalPlayer(), "NS.Observer")) then
 			menu:addCategory(self.name)
 
 			local buttonESP = menu:addCheck(L"toggleESP", function(panel, state)
@@ -74,7 +79,7 @@ if (CLIENT) then
 	function PLUGIN:ShouldDrawEntityInfo(entity)
 		if (IsValid(entity)) then
 			if (entity:IsPlayer() or IsValid(entity:getNetVar("player"))) then
-				if (entity.IsAdmin and entity:IsAdmin() and entity:GetMoveType() == MOVETYPE_NOCLIP) then
+				if (CAMI.PlayerHasAccess(entity, "NS.Observer") and entity:GetMoveType() == MOVETYPE_NOCLIP) then
 					return false
 				end
 			end
@@ -87,8 +92,8 @@ else
 	end
 
 	function PLUGIN:PlayerNoClip(client, state)
-		-- Observer mode is reserved for administrators.
-		if (client:IsAdmin()) then
+		-- Observer mode is reserved for players with the "NS.Observer" permission.
+		if (CAMI.PlayerHasAccess(client, "NS.Observer")) then
 			-- Check if they are entering noclip.
 			if (state) then
 				-- Store their old position and looking		 at angle.

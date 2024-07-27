@@ -15,18 +15,8 @@ function nut.command.add(command, data)
 
 	-- Store the old onRun because we're able to change it.
 	if (!data.onCheckAccess) then
-		-- Check if the command is for basic admins only.
-		if (data.adminOnly) then
-			data.onCheckAccess = function(client)
-				return client:IsAdmin()
-			end
-		-- Or if it is only for super administrators.
-		elseif (data.superAdminOnly) then
-			data.onCheckAccess = function(client)
-				return client:IsSuperAdmin()
-			end
-		-- Or if we specify a usergroup allowed to use this.
-		elseif (data.group) then
+		-- cami is better than this rigmarole, but keep it for compat
+		if (data.group) then
 			-- The group property can be a table of usergroups.
 			if istable(data.group) then
 				data.onCheckAccess = function(client)
@@ -45,6 +35,19 @@ function nut.command.add(command, data)
 					return client:IsUserGroup(data.group)
 				end
 			end
+		end
+
+		local privilege = "NS.Commands." .. (data.privilege and data.privilege or command)
+
+		if (!CAMI.GetPrivilege(privilege)) then
+			CAMI.RegisterPrivilege({
+				Name = privilege,
+				MinAccess = data.adminOnly and "admin" or (data.superAdminOnly and "superadmin" or "user")
+			})
+		end
+
+		data.onCheckAccess = function(client)
+			return CAMI.PlayerHasAccess(client, privilege) == true
 		end
 	end
 

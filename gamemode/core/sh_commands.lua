@@ -57,6 +57,20 @@ nut.command.add("setvoicemail", {
 	end
 })
 
+nut.command.add("event", {
+	adminOnly = true,
+	syntax = "<string text>",
+	onRun = function(client, arguments)
+		local text = table.concat(arguments, " ")
+
+		if (text:find("%S")) then
+			nut.chat.send(client, "event", text)
+		else
+			return "@invalidArg", 1
+		end
+	end
+})
+
 nut.command.add("flaggive", {
 	adminOnly = true,
 	syntax = "<string name> [string flags]",

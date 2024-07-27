@@ -1,6 +1,6 @@
 -- Determines whether or not a player can use a vendor.
 function PLUGIN:CanPlayerAccessVendor(client, vendor)
-	if (client:IsAdmin()) then
+	if (CAMI.PlayerHasAccess(client, "NS.ManageVendors")) then
 		return true
 	end
 

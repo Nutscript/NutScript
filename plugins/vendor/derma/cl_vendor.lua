@@ -34,7 +34,7 @@ function PANEL:Init()
 	self.leave:SetPaintBackground(false)
 	self.leave.x = ScrW() * 0.5 - (self.leave:GetWide() * 0.5)
 
-	if (LocalPlayer():IsAdmin()) then
+	if (CAMI.PlayerHasAccess(LocalPlayer(), "NS.ManageVendors")) then
 		self.editor = self.buttons:Add("DButton")
 		self.editor:SetFont("nutVendorButtonFont")
 		self.editor:SetText(L("editor"):upper())

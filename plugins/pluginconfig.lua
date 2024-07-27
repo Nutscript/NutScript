@@ -4,6 +4,11 @@ PLUGIN.name = "Plugin Configuration"
 PLUGIN.author = "Cheesenut"
 PLUGIN.desc = "Adds a menu for enabling/disabling plugins."
 
+CAMI.RegisterPrivilege({
+	Name = "NS.Config.Plugins",
+	MinAccess = "superadmin"
+})
+
 if (SERVER) then
 	PLUGIN.overwrite = PLUGIN.overwrite or {}
 
@@ -56,14 +61,16 @@ if (SERVER) then
 		nut.plugin.setDisabled(name, disabled)
 		self.overwrite[name] = disabled
 
-		net.Start("nutPluginDisable")
-			net.WriteString(name)
-			net.WriteBit(disabled)
-		net.Send(nut.util.getAdmins(true))
+		CAMI.GetPlayersWithAccess("NS.Config.Plugins", function(allowedPlys)
+			net.Start("nutPluginDisable")
+				net.WriteString(name)
+				net.WriteBit(disabled)
+			net.Send(allowedPlys)
+		end)
 	end
 
 	concommand.Add("nut_disableplugin", function(client, _, arguments)
-		if (IsValid(client) and not client:IsSuperAdmin()) then
+		if (IsValid(client) and not CAMI.PlayerHasAccess(client, "NS.Config.Plugins")) then
 			return
 		end
 
@@ -79,14 +86,14 @@ if (SERVER) then
 	end)
 
 	net.Receive("nutPluginDisable", function(_, client)
-		if (not client:IsSuperAdmin()) then return end
+		if (not CAMI.PlayerHasAccess(client, "NS.Config.Plugins")) then return end
 		local name = net.ReadString()
 		local disabled = net.ReadBit() == 1
 		PLUGIN:setPluginDisabled(name, disabled)
 	end)
 
 	net.Receive("nutPluginList", function(_, client)
-		if (not client:IsSuperAdmin()) then return end
+		if (not CAMI.PlayerHasAccess(client, "NS.Config.Plugins")) then return end
 		local plugins = PLUGIN:getPluginList()
 		local disabled
 		net.Start("nutPluginList")

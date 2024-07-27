@@ -89,7 +89,7 @@ nut.config.add("oocLimit", 0, "Character limit per OOC message. 0 means no limit
 	category = "chat"
 })
 
-nut.config.add("oocDelayAdmin", false, "Whether or not OOC chat delay is enabled for admins.", nil, {
+nut.config.add("oocDelayAdmin", false, "Whether or not OOC chat delay is enabled for users with the permission \"NS.OOC.BypassDelay\".", nil, {
 	category = "chat"
 })
 
@@ -102,7 +102,7 @@ nut.config.add("loocDelay", 0, "The delay before a player can use LOOC chat agai
 	category = "chat"
 })
 
-nut.config.add("loocDelayAdmin", false, "Whether or not LOOC chat delay is enabled for admins.", nil, {
+nut.config.add("loocDelayAdmin", false, "Whether or not LOOC chat delay is enabled for users with the permission \"NS.OOC.BypassDelay\".", nil, {
 	category = "chat"
 })
 

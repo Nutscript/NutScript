@@ -1,6 +1,11 @@
 nut.config = nut.config or {}
 nut.config.stored = nut.config.stored or {}
 
+CAMI.RegisterPrivilege({
+	Name = "NS.Config",
+	MinAccess = "superadmin"
+})
+
 function nut.config.add(key, value, desc, callback, data, noNetworking, schemaOnly)
 	assert(isstring(key), "expected config key to be string, got " .. type(key))
 	assert(istable(data), "expected config data to be a table, got " .. type(data))
@@ -131,7 +136,7 @@ if (SERVER) then
 	end
 
 	netstream.Hook("cfgSet", function(client, key, value)
-		if (client:IsSuperAdmin() and type(nut.config.stored[key].default) == type(value) and hook.Run("CanPlayerModifyConfig", client, key) ~= false) then
+		if (CAMI.PlayerHasAccess(client, "NS.Config") and type(nut.config.stored[key].default) == type(value) and hook.Run("CanPlayerModifyConfig", client, key) ~= false) then
 			nut.config.set(key, value)
 
 			if (istable(value)) then
@@ -191,7 +196,7 @@ if (CLIENT) then
 	local legacyConfigMenu = CreateClientConVar("nut_legacyconfig", "0", true, true)
 
 	hook.Add("CreateMenuButtons", "nutConfig", function(tabs)
-		if (not LocalPlayer():IsSuperAdmin() or hook.Run("CanPlayerUseConfig", LocalPlayer()) == false) then
+		if (not CAMI.PlayerHasAccess(LocalPlayer(), "NS.Config") or hook.Run("CanPlayerUseConfig", LocalPlayer()) == false) then
 			return
 		end
 

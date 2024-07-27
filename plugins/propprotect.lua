@@ -2,6 +2,11 @@ PLUGIN.name = "Basic Prop Protection"
 PLUGIN.author = "Chessnut"
 PLUGIN.desc = "Adds a simple prop protection system."
 
+CAMI.RegisterPrivilege({
+	Name = "NS.PropProtect.Bypass",
+	MinAccess = "admin"
+})
+
 local PROP_BLACKLIST = {
 	["models/props_combine/combinetrain02b.mdl"] = true,
 	["models/props_combine/combinetrain02a.mdl"] = true,
@@ -72,19 +77,19 @@ if (SERVER) then
 			return false
 		end
 
-		if (!client:IsAdmin() and PROP_BLACKLIST[model:lower()]) then
+		if (!CAMI.PlayerHasAccess(client, "NS.PropProtect.Bypass") and PROP_BLACKLIST[model:lower()]) then
 			return false
 		end
 	end
 
 	function PLUGIN:PhysgunPickup(client, entity)
-		if (entity:GetCreator() == client) then
+		if (entity:GetCreator() == client or CAMI.PlayerHasAccess(client, "NS.PropProtect.Bypass")) then
 			return true
 		end
 	end
 
 	function PLUGIN:CanProperty(client, property, entity)
-		if (entity:GetCreator() == client and (property == "remover" or property == "collision")) then
+		if ((entity:GetCreator() == client and (property == "remover" or property == "collision")) or CAMI.PlayerHasAccess(client, "NS.PropProtect.Bypass")) then
 			return true
 		end
 	end
@@ -92,7 +97,7 @@ if (SERVER) then
 	function PLUGIN:CanTool(client, trace, tool)
 		local entity = trace.Entity
 
-		if (IsValid(entity) and entity:GetCreator() == client) then
+		if (IsValid(entity) and (entity:GetCreator() == client or CAMI.PlayerHasAccess(client, "NS.PropProtect.Bypass"))) then
 			return true
 		end
 	end
