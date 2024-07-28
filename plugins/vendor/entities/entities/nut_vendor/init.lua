@@ -123,8 +123,8 @@ end
 -- If the value is nil or 0, then the vendor will not use the stock system
 -- for the item.
 function ENT:setMaxStock(itemType, value)
-	if (value == 0 or not isnumber(value)) then
-		value = nil
+	if (not isnumber(value)) then
+		value = 0
 	end
 
 	self.items[itemType] = self.items[itemType] or {}
